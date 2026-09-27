@@ -1,14 +1,5 @@
 import React from 'react';
-import { 
-  Terminal, 
-  Layers, 
-  FileCode, 
-  ShieldCheck, 
-  CheckCircle2, 
-  ArrowRight, 
-  Cpu, 
-  Globe 
-} from 'lucide-react';
+import { FileCode, ShieldCheck } from 'lucide-react';
 
 export const ArchitectureViewer: React.FC = () => {
   const invariants = [
@@ -27,73 +18,67 @@ export const ArchitectureViewer: React.FC = () => {
   ];
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-950 overflow-y-auto p-6 space-y-6 text-slate-100 max-w-6xl mx-auto w-full">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-white">
+    <div className="flex-1 flex flex-col h-full bg-[#1e1e1e] overflow-y-auto p-4 space-y-4 text-[#cccccc] text-[12px] select-none">
+      {/* Header */}
+      <div className="border-b border-[#282828] pb-2">
+        <h1 className="text-[13px] font-semibold text-[#ffffff]">
           Execution Fabric — Production Architecture & Contract Spec
         </h1>
-        <p className="text-xs text-slate-400 mt-1">
-          Two independently verifiable and plug-and-play subsystems joined by a small versioned Protobuf / ConnectRPC contract.
+        <p className="text-[11px] text-[#777777] mt-0.5">
+          Two independently verifiable subsystems joined by a small versioned Protobuf / ConnectRPC contract.
         </p>
       </div>
 
-      {/* Visual Subsystem Split Diagram (Figure 1 & 2) */}
-      <div className="p-6 rounded-2xl border border-slate-800 bg-slate-900/40 space-y-4">
-        <span className="text-sm font-semibold text-white block">
-          Subsystem Boundary & Shared Contract Architecture
-        </span>
+      {/* Subsystem Boundary Breakdown */}
+      <div className="p-3 border border-[#282828] bg-[#181818] space-y-3 font-mono text-[11px]">
+        <div className="text-[11px] font-semibold text-[#888888] uppercase tracking-wide">
+          Subsystem Boundaries (Section 4 & 5)
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-[10px]">
           {/* Part A */}
-          <div className="p-4 rounded-xl border border-cyan-800/60 bg-cyan-950/20 space-y-2">
-            <div className="text-sm font-bold text-cyan-400">Part A — Universal Execution Core</div>
-            <p className="text-[11px] text-slate-300 font-sans leading-relaxed">
-              Owns: JupyterLab workspace, Python package compiler, BuildKit build plane, Go agent, detached jobs, truthful readiness gate.
+          <div className="p-2.5 bg-[#141414] border border-[#222222] space-y-1">
+            <span className="font-bold text-[#ffffff] block text-[11px]">Part A — Execution Core</span>
+            <p className="text-[#888888] leading-relaxed">
+              Owns: JupyterLab workspace, Python environment compiler, BuildKit build plane, Go agent, detached jobs, truthful readiness gate.
             </p>
-            <div className="pt-2 border-t border-cyan-900/40 text-[10px] text-slate-400">
-              <span className="text-cyan-300 font-bold">Must NOT know:</span> AWS/GCP/Azure/GMI instance types, IAM credentials, provider lifecycle.
+            <div className="pt-1 text-[#555555]">
+              Must not know: Cloud instance types, IAM credentials, provider lifecycle.
             </div>
           </div>
 
           {/* Shared Contract */}
-          <div className="p-4 rounded-xl border border-slate-700 bg-slate-900 flex flex-col justify-center items-center text-center space-y-2">
-            <div className="text-sm font-bold text-white">Shared Contract Layer</div>
-            <div className="text-[11px] text-cyan-400">Protobuf + Buf + ConnectRPC</div>
-            <div className="text-[10px] text-slate-400 font-sans">
+          <div className="p-2.5 bg-[#141414] border border-[#222222] space-y-1 text-center flex flex-col justify-center">
+            <span className="font-bold text-[#0078d4] text-[11px]">Shared Contract</span>
+            <div className="text-[#888888]">Protobuf + ConnectRPC</div>
+            <div className="text-[#555555]">
               ComputeRequest → ComputeOffer[]<br />
               BootstrapSpec → NodeLease<br />
-              Lease Renew / Release (Generation Fencing)
-            </div>
-            <div className="text-[10px] text-emerald-400 bg-slate-950 px-2 py-1 rounded border border-slate-800">
-              Zero Shared Database (I2)
+              Lease Renew / Release
             </div>
           </div>
 
           {/* Part B */}
-          <div className="p-4 rounded-xl border border-indigo-800/60 bg-indigo-950/20 space-y-2">
-            <div className="text-sm font-bold text-indigo-400">Part B — Multi-Cloud Compute Fabric</div>
-            <p className="text-[11px] text-slate-300 font-sans leading-relaxed">
+          <div className="p-2.5 bg-[#141414] border border-[#222222] space-y-1">
+            <span className="font-bold text-[#ffffff] block text-[11px]">Part B — Compute Fabric</span>
+            <p className="text-[#888888] leading-relaxed">
               Owns: Cloud connections (GMI, AWS, GCP, Azure, Static), two-stage scheduler, idempotency store, global reconciler, node bootstrap.
             </p>
-            <div className="pt-2 border-t border-indigo-900/40 text-[10px] text-slate-400">
-              <span className="text-indigo-300 font-bold">Must NOT know:</span> Repo files, notebooks, uv/Python dependencies, Jupyter internals.
+            <div className="pt-1 text-[#555555]">
+              Must not know: Repository files, notebooks, uv/Python dependencies.
             </div>
           </div>
         </div>
       </div>
 
-      {/* Protobuf Schema Viewer */}
-      <div className="p-5 rounded-2xl border border-slate-800 bg-slate-900/40 space-y-3 font-mono text-xs">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-          <span className="font-semibold text-white flex items-center gap-2">
-            <FileCode className="w-4 h-4 text-cyan-400" />
-            <span>contracts/compute/v1/broker.proto (Canonical Contract)</span>
-          </span>
-          <span className="text-[10px] text-emerald-400">Buf Lint Verified ✓</span>
+      {/* Protobuf Schema Box */}
+      <div className="p-3 border border-[#282828] bg-[#181818] space-y-2 font-mono text-[11px]">
+        <div className="flex items-center justify-between text-[#858585] border-b border-[#242424] pb-1">
+          <span className="font-semibold text-[#ffffff]">contracts/compute/v1/broker.proto</span>
+          <span className="text-[10px] text-[#4ec9b0]">Buf Verified</span>
         </div>
 
-        <div className="p-4 rounded-xl bg-slate-950 border border-slate-800/80 text-[11px] text-slate-300 space-y-2 overflow-x-auto leading-relaxed">
+        <div className="p-2.5 bg-[#141414] border border-[#222222] text-[11px] text-[#a0a0a0] overflow-x-auto leading-relaxed">
           <pre>{`syntax = "proto3";
 package compute.v1;
 
@@ -127,25 +112,20 @@ message NodeLease {
         </div>
       </div>
 
-      {/* The 12 Non-Negotiable Invariants Table */}
-      <div className="p-5 rounded-2xl border border-slate-800 bg-slate-900/40 space-y-4">
-        <span className="text-sm font-semibold text-white block">
-          Non-Negotiable System Invariants (Section 3)
-        </span>
+      {/* Non-Negotiable Invariants Table */}
+      <div className="p-3 border border-[#282828] bg-[#181818] space-y-2">
+        <div className="text-[11px] font-semibold text-[#888888] uppercase tracking-wide">
+          The 12 Invariants (Section 3)
+        </div>
 
-        <div className="space-y-2">
+        <div className="divide-y divide-[#222222] text-[11px]">
           {invariants.map(inv => (
-            <div 
-              key={inv.id}
-              className="p-3 rounded-lg border border-slate-800/80 bg-slate-950/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
-            >
-              <div className="flex items-center gap-2.5">
-                <span className="px-2 py-0.5 rounded bg-cyan-950 border border-cyan-800/80 text-cyan-300 font-mono font-bold text-[11px]">
-                  {inv.id}
-                </span>
-                <span className="font-semibold text-white">{inv.rule}</span>
+            <div key={inv.id} className="py-2 flex items-start justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[#0078d4] font-bold shrink-0">{inv.id}</span>
+                <span className="font-medium text-[#ffffff]">{inv.rule}</span>
               </div>
-              <span className="text-slate-400 text-[11px] font-sans sm:text-right max-w-md">
+              <span className="text-[#666666] text-[10px] text-right shrink-0 max-w-sm">
                 {inv.reason}
               </span>
             </div>

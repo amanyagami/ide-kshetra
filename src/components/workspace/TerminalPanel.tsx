@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Terminal, Send, Trash2, ShieldAlert, Cpu, Activity, Play } from 'lucide-react';
+import { Terminal, Send, Trash2, SplitSquareVertical, Plus } from 'lucide-react';
 
 interface TerminalPanelProps {
   initialCommand?: string;
@@ -16,21 +16,22 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
   initialCommand,
   onClearInitialCommand,
 }) => {
+  const [activeTab, setActiveTab] = useState<'bash' | 'agent'>('bash');
   const [history, setHistory] = useState<CommandEntry[]>([
     {
       command: 'fabric-agent doctor',
       timestamp: '14:20:02',
       output: [
-        'Fabric Agent v2.4.1 (linux/amd64 commit 98a21f) · Diagnostic Self-Test',
+        'Fabric Agent v2.4.1 (linux/amd64 commit 98a21f) - Diagnostic Self-Test',
         '----------------------------------------------------------------------',
-        '[PASS] Identity & Enrollment: spiffe://execution.fabric/tenant/t_noah/node/n_gmi_h200 (valid mTLS cert)',
+        '[PASS] Identity & Enrollment: spiffe://execution.fabric/tenant/t_noah/node/n_gmi_h200 (mTLS cert valid)',
         '[PASS] Gateway Multiplexing: QUIC stream active on udp://gateway.fabric.internal:443 (fallback: TCP 443 OK)',
         '[PASS] Block Storage: /workspace (ext4) mounted rw, 400 GB total, 72.4 GB used, inode free: 94%',
         '[PASS] NVIDIA Container Toolkit: Driver 550.54.14, NVML reachable, GPU 0 device /dev/nvidia0 online',
         '[PASS] OCI Container Isolation: Kata/runc sandbox healthy, user uid=1000 (developer)',
         '[PASS] Jupyter Runtime Isolation: JupyterLab running from /opt/fabric/tools, kernels using /workspace/.venv',
         '[PASS] Restic Checkpoint Target: S3-compatible encrypted snapshot repository reachable (p95: 19ms)',
-        '>> System status: ALL HEALTH CHECKS NOMINAL (Ready for workload supervision)',
+        'Status: ALL HEALTH CHECKS NOMINAL (Ready for workload supervision)',
       ],
     },
   ]);
@@ -132,68 +133,92 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-950 font-mono text-xs text-slate-200 overflow-hidden">
-      {/* Quick command bar */}
-      <div className="h-8 px-3 border-b border-slate-800/60 bg-slate-900/40 flex items-center justify-between text-[11px] text-slate-400 select-none">
-        <div className="flex items-center gap-2 overflow-x-auto py-1">
-          <span className="text-slate-500 font-medium">Quick commands:</span>
+    <div className="flex-1 flex flex-col h-full bg-[#181818] font-mono text-[11px] text-[#cccccc] overflow-hidden select-none">
+      {/* Terminal Tab Bar */}
+      <div className="h-[26px] px-2 border-b border-[#282828] bg-[#141414] flex items-center justify-between text-[#858585]">
+        <div className="flex items-center gap-1">
           <button
-            onClick={() => executeCommand('fabric-agent doctor')}
-            className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-cyan-300 transition-colors"
+            onClick={() => setActiveTab('bash')}
+            className={`h-[22px] px-2 flex items-center gap-1.5 rounded-sm transition-colors ${
+              activeTab === 'bash' ? 'bg-[#1e1e1e] text-[#cccccc]' : 'hover:text-[#cccccc]'
+            }`}
           >
-            fabric-agent doctor
+            <Terminal className="w-3 h-3 text-[#0078d4]" />
+            <span>1: bash (node-gmi-h200)</span>
           </button>
+
           <button
-            onClick={() => executeCommand('nvidia-smi')}
-            className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-emerald-300 transition-colors"
+            onClick={() => setActiveTab('agent')}
+            className={`h-[22px] px-2 flex items-center gap-1.5 rounded-sm transition-colors ${
+              activeTab === 'agent' ? 'bg-[#1e1e1e] text-[#cccccc]' : 'hover:text-[#cccccc]'
+            }`}
           >
-            nvidia-smi
+            <span className="text-[#858585]">2: fabric-agent</span>
           </button>
-          <button
-            onClick={() => executeCommand('uv run python -m project.train')}
-            className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 transition-colors"
-          >
-            uv run train
-          </button>
-          <button
-            onClick={() => executeCommand('restic snapshots')}
-            className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-purple-300 transition-colors"
-          >
-            restic snapshots
+
+          <button className="p-1 hover:text-[#cccccc] rounded-sm transition-colors" title="New Terminal">
+            <Plus className="w-3 h-3" />
           </button>
         </div>
 
-        <button
-          onClick={() => setHistory([])}
-          className="p-1 hover:text-rose-400 rounded hover:bg-slate-800 transition-colors"
-          title="Clear Terminal"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
+        {/* Quick action buttons */}
+        <div className="flex items-center gap-2 text-[10px]">
+          <span className="text-[#555555]">Quick:</span>
+          <button
+            onClick={() => executeCommand('nvidia-smi')}
+            className="hover:text-[#cccccc] text-[#858585] transition-colors"
+          >
+            nvidia-smi
+          </button>
+          <span>·</span>
+          <button
+            onClick={() => executeCommand('fabric-agent doctor')}
+            className="hover:text-[#cccccc] text-[#858585] transition-colors"
+          >
+            doctor
+          </button>
+          <span>·</span>
+          <button
+            onClick={() => executeCommand('uv run python -m project.train')}
+            className="hover:text-[#cccccc] text-[#858585] transition-colors"
+          >
+            train
+          </button>
+          <span>·</span>
+          <button
+            onClick={() => setHistory([])}
+            className="p-1 hover:text-[#cccccc] transition-colors"
+            title="Clear Terminal"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
+        </div>
       </div>
 
-      {/* Output log */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3 leading-relaxed">
+      {/* Terminal Output Stream */}
+      <div className="flex-1 overflow-y-auto p-2.5 space-y-2 select-text font-mono leading-5">
         {history.map((entry, idx) => (
-          <div key={idx} className="space-y-1">
-            <div className="flex items-center gap-2 text-cyan-400 font-semibold">
-              <span className="text-slate-500 font-normal">[{entry.timestamp}]</span>
-              <span>developer@node-gmi-h200:~$</span>
-              <span className="text-white">{entry.command}</span>
+          <div key={idx} className="space-y-0.5">
+            <div className="flex items-center gap-1.5 text-[#cccccc]">
+              <span className="text-[#569cd6]">developer@node-gmi-h200</span>
+              <span className="text-[#858585]">:</span>
+              <span className="text-[#dcdcaa]">~</span>
+              <span className="text-[#858585]">$</span>
+              <span className="text-[#ffffff]">{entry.command}</span>
             </div>
-            <div className="pl-4 border-l border-slate-800 text-slate-300 space-y-0.5 whitespace-pre-wrap">
+            <div className="text-[#a0a0a0] pl-2 whitespace-pre-wrap">
               {entry.output.map((line, lIdx) => (
                 <div 
                   key={lIdx}
-                  className={`${
+                  className={
                     line.includes('[PASS]') || line.includes('[OK]') 
-                      ? 'text-emerald-400' 
+                      ? 'text-[#4ec9b0]' 
                       : line.includes('NVIDIA-SMI') 
-                      ? 'text-cyan-300' 
+                      ? 'text-[#858585]' 
                       : line.includes('Loss:') 
-                      ? 'text-amber-300 font-bold' 
+                      ? 'text-[#ce9178]' 
                       : ''
-                  }`}
+                  }
                 >
                   {line}
                 </div>
@@ -203,22 +228,22 @@ export const TerminalPanel: React.FC<TerminalPanelProps> = ({
         ))}
       </div>
 
-      {/* Command prompt input */}
+      {/* Interactive Command Input Prompt */}
       <form 
         onSubmit={(e) => { e.preventDefault(); executeCommand(inputVal); }}
-        className="h-10 border-t border-slate-800/80 px-3 bg-slate-900/60 flex items-center gap-2"
+        className="h-[28px] border-t border-[#242424] px-2.5 bg-[#141414] flex items-center gap-1.5"
       >
-        <span className="text-cyan-400 font-bold">developer@node:~$</span>
+        <span className="text-[#569cd6] text-[11px]">developer@node:~$</span>
         <input
           type="text"
           value={inputVal}
           onChange={(e) => setInputVal(e.target.value)}
-          placeholder="Type command (e.g. nvidia-smi, fabric-agent doctor, uv run...)"
-          className="flex-1 bg-transparent outline-none font-mono text-xs text-white placeholder-slate-600"
+          placeholder="nvidia-smi, fabric-agent doctor, uv run..."
+          className="flex-1 bg-transparent outline-none font-mono text-[11px] text-[#cccccc] placeholder-[#444444]"
         />
         <button
           type="submit"
-          className="p-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors"
+          className="p-1 text-[#666666] hover:text-[#cccccc] transition-colors"
         >
           <Send className="w-3 h-3" />
         </button>

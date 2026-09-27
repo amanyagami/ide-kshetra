@@ -1,16 +1,5 @@
 import React from 'react';
-import { 
-  Layers, 
-  ShieldCheck, 
-  Lock, 
-  Cpu, 
-  CheckCircle2, 
-  AlertTriangle, 
-  FileCode, 
-  Key, 
-  Terminal, 
-  HardDrive 
-} from 'lucide-react';
+import { CheckCircle2, ShieldCheck, FileCode } from 'lucide-react';
 import { EnvironmentSpec, EnvironmentArtifact } from '../../types/fabric';
 
 interface EnvironmentPanelProps {
@@ -23,152 +12,131 @@ export const EnvironmentPanel: React.FC<EnvironmentPanelProps> = ({
   artifact,
 }) => {
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-950 overflow-y-auto p-6 space-y-6 text-slate-100 max-w-6xl mx-auto w-full">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-white">
+    <div className="flex-1 flex flex-col h-full bg-[#1e1e1e] overflow-y-auto p-4 space-y-4 text-[#cccccc] text-[12px] select-none">
+      {/* Header */}
+      <div className="border-b border-[#282828] pb-2">
+        <h1 className="text-[13px] font-semibold text-[#ffffff]">
           Environment Compiler & Supply-Chain Security
         </h1>
-        <p className="text-xs text-slate-400 mt-1">
-          Separates source EnvironmentSpecID from signed OCI artifact digest. Environments are built on isolated CPU workers in parallel with compute acquisition.
+        <p className="text-[11px] text-[#777777] mt-0.5">
+          Separates source EnvironmentSpecID from signed OCI artifact digest. Built on isolated CPU workers in parallel with compute acquisition.
         </p>
       </div>
 
-      {/* Reproducibility Meter Card */}
-      <div className="p-5 rounded-2xl border border-slate-800 bg-slate-900/40 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
-          <div className="space-y-1">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
-              Supply-Chain Reproducibility Assessment
+      {/* Reproducibility Assessment */}
+      <div className="p-3 border border-[#282828] bg-[#181818] space-y-2.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-semibold text-[#888888] uppercase tracking-wide">
+              Reproducibility Score:
             </span>
-            <div className="flex items-center gap-2">
-              <span className="text-2xl font-bold text-emerald-400 font-mono">
-                {spec.reproducibilityScore}% Fully Pinned
-              </span>
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-800/80 font-mono">
-                Deterministic
-              </span>
-            </div>
+            <span className="text-sm font-bold font-mono text-[#4ec9b0]">
+              {spec.reproducibilityScore}% Fully Pinned
+            </span>
           </div>
-
-          <div className="text-xs font-mono text-slate-400 sm:text-right">
-            <span>Detection Source: </span>
-            <span className="text-cyan-400 font-semibold">{spec.detectionSource}</span>
-            <span className="block text-[11px] text-slate-500">.devcontainer/devcontainer.json (Authoritative)</span>
-          </div>
+          <span className="text-[11px] font-mono text-[#666666]">
+            Source: <strong className="text-[#a0a0a0]">{spec.detectionSource}</strong> (.devcontainer/devcontainer.json)
+          </span>
         </div>
 
-        {/* Reproducibility checklist items */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px]">
           {spec.reproducibilityNotes.map((note, idx) => (
-            <div key={idx} className="p-3 rounded-lg border border-slate-800/80 bg-slate-950/60 flex items-start gap-2.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-              <span className="text-slate-300 leading-relaxed">{note}</span>
+            <div key={idx} className="p-2 border border-[#222222] bg-[#141414] flex items-start gap-2">
+              <CheckCircle2 className="w-3.5 h-3.5 text-[#4ec9b0] shrink-0 mt-0.5" />
+              <span className="text-[#a0a0a0] leading-snug">{note}</span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Two-Part Artifact Contract Comparison (Section 6.5) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* EnvironmentSpecID (Source Truth) */}
-        <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/40 space-y-3 font-mono text-xs">
-          <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
-            <span className="font-semibold text-white flex items-center gap-2">
-              <Layers className="w-4 h-4 text-cyan-400" />
-              <span>1. EnvironmentSpecID (Source Inputs)</span>
-            </span>
-            <span className="text-[10px] text-slate-500">Source Fingerprint</span>
+      {/* Two-Part Separation: SpecID vs Signed OCI Artifact (Section 6.5) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 font-mono text-[11px]">
+        {/* EnvironmentSpecID */}
+        <div className="p-3 border border-[#282828] bg-[#181818] space-y-2">
+          <div className="flex items-center justify-between text-[#858585] border-b border-[#242424] pb-1">
+            <span className="font-semibold text-[#ffffff]">1. EnvironmentSpecID (Source Inputs)</span>
+            <span>Source Truth</span>
           </div>
 
-          <div className="space-y-2 text-[11px]">
+          <div className="space-y-1.5 text-[10px]">
             <div>
-              <span className="text-slate-500 block">Spec SHA256:</span>
-              <span className="text-cyan-300 break-all">{spec.specId}</span>
+              <span className="text-[#555555] block">SPEC SHA256:</span>
+              <span className="text-[#cccccc] break-all">{spec.specId}</span>
             </div>
             <div>
-              <span className="text-slate-500 block">Base Image:</span>
-              <span className="text-slate-200">{spec.baseImage}</span>
-              <span className="text-slate-400 text-[10px] block truncate">{spec.baseImageDigest}</span>
+              <span className="text-[#555555] block">BASE IMAGE DIGEST:</span>
+              <span className="text-[#cccccc] break-all">{spec.baseImageDigest}</span>
             </div>
             <div>
-              <span className="text-slate-500 block">Python Version:</span>
-              <span className="text-slate-200">{spec.pythonVersion}</span>
+              <span className="text-[#555555] block">PYTHON:</span>
+              <span className="text-[#cccccc]">{spec.pythonVersion}</span>
             </div>
             <div>
-              <span className="text-slate-500 block">Hardware Compatibility Target:</span>
-              <span className="text-amber-400">{spec.cudaRequirement}</span>
+              <span className="text-[#555555] block">CUDA TARGET:</span>
+              <span className="text-[#cca700]">{spec.cudaRequirement}</span>
             </div>
             <div>
-              <span className="text-slate-500 block">Dependency Lockfile:</span>
-              <span className="text-emerald-400">{spec.dependencyLockfile}</span>
+              <span className="text-[#555555] block">LOCKFILE:</span>
+              <span className="text-[#4ec9b0]">{spec.dependencyLockfile}</span>
             </div>
           </div>
         </div>
 
-        {/* EnvironmentArtifact (Built OCI Digest & Cosign) */}
-        <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/40 space-y-3 font-mono text-xs">
-          <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
-            <span className="font-semibold text-white flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>2. EnvironmentArtifact (Signed OCI)</span>
-            </span>
-            <span className="text-[10px] text-emerald-400">Cosign Signed ✓</span>
+        {/* EnvironmentArtifact */}
+        <div className="p-3 border border-[#282828] bg-[#181818] space-y-2">
+          <div className="flex items-center justify-between text-[#858585] border-b border-[#242424] pb-1">
+            <span className="font-semibold text-[#ffffff]">2. EnvironmentArtifact (Signed OCI)</span>
+            <span className="text-[#4ec9b0]">Cosign Signed</span>
           </div>
 
-          <div className="space-y-2 text-[11px]">
+          <div className="space-y-1.5 text-[10px]">
             <div>
-              <span className="text-slate-500 block">Immutable Image Digest:</span>
-              <span className="text-emerald-300 break-all">{artifact.imageDigest}</span>
+              <span className="text-[#555555] block">IMAGE DIGEST:</span>
+              <span className="text-[#4ec9b0] break-all">{artifact.imageDigest}</span>
             </div>
             <div>
-              <span className="text-slate-500 block">Cryptographic Signature:</span>
-              <span className="text-slate-300 break-all">{artifact.signature}</span>
+              <span className="text-[#555555] block">SIGNATURE:</span>
+              <span className="text-[#858585] break-all">{artifact.signature}</span>
             </div>
             <div>
-              <span className="text-slate-500 block">SBOM Provenance (SLSA v1.0):</span>
-              <span className="text-slate-300 truncate block">{artifact.provenance}</span>
+              <span className="text-[#555555] block">PROVENANCE:</span>
+              <span className="text-[#858585] truncate block">{artifact.provenance}</span>
             </div>
             <div>
-              <span className="text-slate-500 block">Build Plane Worker:</span>
-              <span className="text-slate-200">Dedicated Isolated CPU Worker (BuildKit)</span>
+              <span className="text-[#555555] block">BUILD PLANE:</span>
+              <span className="text-[#cccccc]">Isolated CPU Worker (BuildKit)</span>
             </div>
             <div>
-              <span className="text-slate-500 block">Build Time / Cache Layer:</span>
-              <span className="text-cyan-400">{artifact.buildTimeSec}s ({artifact.cacheLayer} Registry Cache Hit)</span>
+              <span className="text-[#555555] block">BUILD TIME & CACHE:</span>
+              <span className="text-[#0078d4]">{artifact.buildTimeSec}s ({artifact.cacheLayer} Cache Hit)</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Security Scan Results (Trivy & Secret Detection) */}
-      <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/30 space-y-3">
-        <div className="flex items-center justify-between text-xs">
-          <span className="font-semibold text-white flex items-center gap-2">
-            <Lock className="w-4 h-4 text-cyan-400" />
-            <span>Trivy Vulnerability & Secret Scanning Report</span>
-          </span>
-          <span className="text-emerald-400 font-mono text-[11px]">
-            Policy Passed: 0 High/Critical CVEs
-          </span>
+      {/* Security Scanning Report (Trivy) */}
+      <div className="p-3 border border-[#282828] bg-[#181818] space-y-2">
+        <div className="flex items-center justify-between text-[11px] text-[#858585]">
+          <span>TRIVY VULNERABILITY & SECRET SCAN REPORT</span>
+          <span className="text-[#4ec9b0] font-mono text-[10px]">Policy Passed</span>
         </div>
 
-        <div className="grid grid-cols-4 gap-3 text-center text-xs font-mono">
-          <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
-            <span className="text-[10px] text-slate-500 uppercase block">Critical CVEs</span>
-            <span className="text-lg font-bold text-emerald-400">0</span>
+        <div className="grid grid-cols-4 gap-2 text-center font-mono text-[11px]">
+          <div className="p-2 bg-[#141414] border border-[#222222]">
+            <span className="text-[10px] text-[#555555] block">CRITICAL CVE</span>
+            <span className="text-sm font-bold text-[#4ec9b0]">0</span>
           </div>
-          <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
-            <span className="text-[10px] text-slate-500 uppercase block">High CVEs</span>
-            <span className="text-lg font-bold text-emerald-400">0</span>
+          <div className="p-2 bg-[#141414] border border-[#222222]">
+            <span className="text-[10px] text-[#555555] block">HIGH CVE</span>
+            <span className="text-sm font-bold text-[#4ec9b0]">0</span>
           </div>
-          <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
-            <span className="text-[10px] text-slate-500 uppercase block">Hardcoded Secrets</span>
-            <span className="text-lg font-bold text-emerald-400">0</span>
+          <div className="p-2 bg-[#141414] border border-[#222222]">
+            <span className="text-[10px] text-[#555555] block">LEAKED SECRETS</span>
+            <span className="text-sm font-bold text-[#4ec9b0]">0</span>
           </div>
-          <div className="p-3 rounded-lg bg-slate-950 border border-slate-800">
-            <span className="text-[10px] text-slate-500 uppercase block">Layer Cache</span>
-            <span className="text-lg font-bold text-cyan-400">{artifact.cacheLayer}</span>
+          <div className="p-2 bg-[#141414] border border-[#222222]">
+            <span className="text-[10px] text-[#555555] block">CACHE LAYER</span>
+            <span className="text-sm font-bold text-[#0078d4]">{artifact.cacheLayer}</span>
           </div>
         </div>
       </div>

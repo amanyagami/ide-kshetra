@@ -1,16 +1,5 @@
 import React, { useState } from 'react';
-import { 
-  ShieldCheck, 
-  Flame, 
-  RotateCw, 
-  CheckCircle2, 
-  AlertTriangle, 
-  Zap, 
-  Terminal, 
-  Activity, 
-  Sliders,
-  Check
-} from 'lucide-react';
+import { RotateCw, CheckCircle2, Check, ShieldCheck } from 'lucide-react';
 import { ChaosSettings } from '../../types/fabric';
 
 interface VerificationTestbedProps {
@@ -30,7 +19,7 @@ export const VerificationTestbed: React.FC<VerificationTestbedProps> = ({
   chaos,
   onUpdateChaos,
 }) => {
-  const [partAResult, setPartAResult] = useState<TestRunResult>({
+  const [partAResult] = useState<TestRunResult>({
     suite: 'part_a',
     status: 'idle',
     totalTests: 9,
@@ -45,11 +34,11 @@ export const VerificationTestbed: React.FC<VerificationTestbedProps> = ({
       '[TEST 7/9] Network Transport: Multiplexed session active; simulated UDP drop falls back to TLS:443 -> PASSED (52ms)',
       '[TEST 8/9] Persistence: Workspace state survives runtime recreate; Restic snapshot restores -> PASSED (85ms)',
       '[TEST 9/9] Failure Injection: Supervisor isolates kernel crashes from agent/workspace -> PASSED (32ms)',
-      '>> PART A UNIVERSAL EXECUTION CORE FULLY CERTIFIED AGAINST FAKECOMPUTEBROKER.',
+      'Status: PART A UNIVERSAL EXECUTION CORE FULLY CERTIFIED AGAINST FAKECOMPUTEBROKER.',
     ],
   });
 
-  const [partBResult, setPartBResult] = useState<TestRunResult>({
+  const [partBResult] = useState<TestRunResult>({
     suite: 'part_b',
     status: 'idle',
     totalTests: 12,
@@ -67,11 +56,11 @@ export const VerificationTestbed: React.FC<VerificationTestbedProps> = ({
       '[CONFORMANCE 10/12] Provider missing on release: converges cleanly to RELEASED -> PASSED (30ms)',
       '[CONFORMANCE 11/12] Global Reconciler: identifies and quarantines unleased resources -> PASSED (88ms)',
       '[CONFORMANCE 12/12] Lease generation fencing: stale mutations with old generation rejected -> PASSED (16ms)',
-      '>> PART B MULTI-CLOUD COMPUTE FABRIC FULLY CERTIFIED AGAINST FAKEREGISTRATIONSINK.',
+      'Status: PART B MULTI-CLOUD COMPUTE FABRIC FULLY CERTIFIED AGAINST FAKEREGISTRATIONSINK.',
     ],
   });
 
-  const [canonicalResult, setCanonicalResult] = useState<TestRunResult>({
+  const [canonicalResult] = useState<TestRunResult>({
     suite: 'canonical',
     status: 'idle',
     totalTests: 10,
@@ -88,7 +77,7 @@ export const VerificationTestbed: React.FC<VerificationTestbedProps> = ({
       '[STEP 8] Detached Job: Background training supervised by agent; browser disconnect tested',
       '[STEP 9] Checkpoint & Snapshot: Restic encrypted backup created and verified',
       '[STEP 10] Release & Reconcile: NodeLease released; reconciler proves 0 orphaned resources',
-      '>> CANONICAL USER JOURNEY PASSED ALL PRODUCTION GATES (10/10).',
+      'Status: CANONICAL USER JOURNEY PASSED ALL PRODUCTION GATES (10/10).',
     ],
   });
 
@@ -96,191 +85,182 @@ export const VerificationTestbed: React.FC<VerificationTestbedProps> = ({
 
   const runSuite = async (suite: 'part_a' | 'part_b' | 'canonical') => {
     setRunningSuite(suite);
-    await new Promise(r => setTimeout(r, 800));
+    await new Promise(r => setTimeout(r, 600));
     setRunningSuite(null);
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-950 overflow-y-auto p-6 space-y-6 text-slate-100 max-w-6xl mx-auto w-full">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-white">
-          Verification Testbed & Chaos Simulation
+    <div className="flex-1 flex flex-col h-full bg-[#1e1e1e] overflow-y-auto p-4 space-y-4 text-[#cccccc] text-[12px] select-none">
+      {/* Header */}
+      <div className="border-b border-[#282828] pb-2">
+        <h1 className="text-[13px] font-semibold text-[#ffffff]">
+          Verification Testbed & Chaos Fault Simulation
         </h1>
-        <p className="text-xs text-slate-400 mt-1">
-          Certify Part A independently against FakeComputeBroker, certify Part B against FakeRegistrationSink, and inject real failure scenarios to test system resilience.
+        <p className="text-[11px] text-[#777777] mt-0.5">
+          Certify Part A independently against FakeComputeBroker, certify Part B against FakeRegistrationSink, and test failure recovery.
         </p>
       </div>
 
-      {/* Chaos Injection Toggles Grid */}
-      <div className="p-5 rounded-2xl border border-slate-800 bg-slate-900/40 space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-          <span className="text-sm font-semibold text-white flex items-center gap-2">
-            <Flame className="w-4 h-4 text-amber-400" />
-            <span>Chaos & Fault Injection Engine (Section 15)</span>
-          </span>
-          <span className="text-xs text-slate-400">Live Resilience Simulation</span>
+      {/* Fault Injection Matrix */}
+      <div className="p-3 border border-[#282828] bg-[#181818] space-y-2.5">
+        <div className="text-[11px] font-semibold text-[#888888] uppercase tracking-wide">
+          Chaos & Fault Injection Toggles (Section 15)
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-[11px]">
           {/* UDP Blocked */}
           <div 
             onClick={() => onUpdateChaos({ ...chaos, blockUdpTransport: !chaos.blockUdpTransport })}
-            className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start justify-between ${
+            className={`p-2 border cursor-pointer flex items-start justify-between transition-colors ${
               chaos.blockUdpTransport
-                ? 'bg-amber-950/40 border-amber-500/60 text-amber-200'
-                : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                ? 'bg-[#1e1e1e] border-[#0078d4] text-[#ffffff]'
+                : 'bg-[#141414] border-[#262626] text-[#777777] hover:border-[#383838]'
             }`}
           >
-            <div className="space-y-1">
-              <span className="font-semibold block text-white">Block QUIC UDP :443</span>
-              <span className="text-[11px] block text-slate-400 leading-snug">
-                Tests automatic fallback to multiplexed TLS/WSS over TCP on port 443.
+            <div className="space-y-0.5">
+              <span className="font-semibold block text-[#cccccc]">Block QUIC UDP :443</span>
+              <span className="text-[10px] text-[#666666] block">
+                Forces transport fallback to TLS/WSS over TCP on port 443.
               </span>
             </div>
-            <div className={`w-4 h-4 rounded shrink-0 flex items-center justify-center mt-0.5 ${
-              chaos.blockUdpTransport ? 'bg-amber-500 text-slate-950' : 'bg-slate-800'
+            <div className={`w-3.5 h-3.5 rounded-sm shrink-0 flex items-center justify-center mt-0.5 ${
+              chaos.blockUdpTransport ? 'bg-[#0078d4] text-white' : 'bg-[#2b2b2b]'
             }`}>
-              {chaos.blockUdpTransport && <Check className="w-3 h-3 stroke-[3]" />}
+              {chaos.blockUdpTransport && <Check className="w-2.5 h-2.5 stroke-[3]" />}
             </div>
           </div>
 
-          {/* Ambiguous Create Timeout */}
+          {/* Ambiguous Create */}
           <div 
             onClick={() => onUpdateChaos({ ...chaos, simulateAmbiguousCreate: !chaos.simulateAmbiguousCreate })}
-            className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start justify-between ${
+            className={`p-2 border cursor-pointer flex items-start justify-between transition-colors ${
               chaos.simulateAmbiguousCreate
-                ? 'bg-amber-950/40 border-amber-500/60 text-amber-200'
-                : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                ? 'bg-[#1e1e1e] border-[#0078d4] text-[#ffffff]'
+                : 'bg-[#141414] border-[#262626] text-[#777777] hover:border-[#383838]'
             }`}
           >
-            <div className="space-y-1">
-              <span className="font-semibold block text-white">Ambiguous Create Timeout</span>
-              <span className="text-[11px] block text-slate-400 leading-snug">
-                Tests Invariant I3: looks up request_id tag before retry to avoid duplicates.
+            <div className="space-y-0.5">
+              <span className="font-semibold block text-[#cccccc]">Ambiguous Create Timeout</span>
+              <span className="text-[10px] text-[#666666] block">
+                Tests Invariant I3: adopts request_id tag before retrying.
               </span>
             </div>
-            <div className={`w-4 h-4 rounded shrink-0 flex items-center justify-center mt-0.5 ${
-              chaos.simulateAmbiguousCreate ? 'bg-amber-500 text-slate-950' : 'bg-slate-800'
+            <div className={`w-3.5 h-3.5 rounded-sm shrink-0 flex items-center justify-center mt-0.5 ${
+              chaos.simulateAmbiguousCreate ? 'bg-[#0078d4] text-white' : 'bg-[#2b2b2b]'
             }`}>
-              {chaos.simulateAmbiguousCreate && <Check className="w-3 h-3 stroke-[3]" />}
+              {chaos.simulateAmbiguousCreate && <Check className="w-2.5 h-2.5 stroke-[3]" />}
             </div>
           </div>
 
-          {/* Quota Exceeded Error */}
+          {/* Quota Exceeded */}
           <div 
             onClick={() => onUpdateChaos({ ...chaos, quotaExceededError: !chaos.quotaExceededError })}
-            className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start justify-between ${
+            className={`p-2 border cursor-pointer flex items-start justify-between transition-colors ${
               chaos.quotaExceededError
-                ? 'bg-rose-950/40 border-rose-500/60 text-rose-200'
-                : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                ? 'bg-[#1e1e1e] border-[#f14c4c] text-[#ffffff]'
+                : 'bg-[#141414] border-[#262626] text-[#777777] hover:border-[#383838]'
             }`}
           >
-            <div className="space-y-1">
-              <span className="font-semibold block text-white">Trigger QUOTA_EXCEEDED</span>
-              <span className="text-[11px] block text-slate-400 leading-snug">
-                Tests typed error taxonomy and contextual quota increase instructions.
+            <div className="space-y-0.5">
+              <span className="font-semibold block text-[#cccccc]">Trigger QUOTA_EXCEEDED</span>
+              <span className="text-[10px] text-[#666666] block">
+                Simulates provider quota rejection with actionable instructions.
               </span>
             </div>
-            <div className={`w-4 h-4 rounded shrink-0 flex items-center justify-center mt-0.5 ${
-              chaos.quotaExceededError ? 'bg-rose-500 text-slate-950' : 'bg-slate-800'
+            <div className={`w-3.5 h-3.5 rounded-sm shrink-0 flex items-center justify-center mt-0.5 ${
+              chaos.quotaExceededError ? 'bg-[#f14c4c] text-white' : 'bg-[#2b2b2b]'
             }`}>
-              {chaos.quotaExceededError && <Check className="w-3 h-3 stroke-[3]" />}
+              {chaos.quotaExceededError && <Check className="w-2.5 h-2.5 stroke-[3]" />}
             </div>
           </div>
 
-          {/* GMI Missing Entitlement */}
+          {/* Missing GMI Entitlement */}
           <div 
             onClick={() => onUpdateChaos({ ...chaos, missingGmiEntitlement: !chaos.missingGmiEntitlement })}
-            className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start justify-between ${
+            className={`p-2 border cursor-pointer flex items-start justify-between transition-colors ${
               chaos.missingGmiEntitlement
-                ? 'bg-rose-950/40 border-rose-500/60 text-rose-200'
-                : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                ? 'bg-[#1e1e1e] border-[#f14c4c] text-[#ffffff]'
+                : 'bg-[#141414] border-[#262626] text-[#777777] hover:border-[#383838]'
             }`}
           >
-            <div className="space-y-1">
-              <span className="font-semibold block text-white">GMI Entitlement Missing</span>
-              <span className="text-[11px] block text-slate-400 leading-snug">
-                Tests preflight failure when GMI account lacks container entitlement.
+            <div className="space-y-0.5">
+              <span className="font-semibold block text-[#cccccc]">GMI Entitlement Missing</span>
+              <span className="text-[10px] text-[#666666] block">
+                Tests preflight when container access is unentitled.
               </span>
             </div>
-            <div className={`w-4 h-4 rounded shrink-0 flex items-center justify-center mt-0.5 ${
-              chaos.missingGmiEntitlement ? 'bg-rose-500 text-slate-950' : 'bg-slate-800'
+            <div className={`w-3.5 h-3.5 rounded-sm shrink-0 flex items-center justify-center mt-0.5 ${
+              chaos.missingGmiEntitlement ? 'bg-[#f14c4c] text-white' : 'bg-[#2b2b2b]'
             }`}>
-              {chaos.missingGmiEntitlement && <Check className="w-3 h-3 stroke-[3]" />}
+              {chaos.missingGmiEntitlement && <Check className="w-2.5 h-2.5 stroke-[3]" />}
             </div>
           </div>
 
-          {/* Spot Eviction Preemption */}
+          {/* Spot Eviction */}
           <div 
             onClick={() => onUpdateChaos({ ...chaos, simulateSpotEviction: !chaos.simulateSpotEviction })}
-            className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start justify-between ${
+            className={`p-2 border cursor-pointer flex items-start justify-between transition-colors ${
               chaos.simulateSpotEviction
-                ? 'bg-amber-950/40 border-amber-500/60 text-amber-200'
-                : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                ? 'bg-[#1e1e1e] border-[#0078d4] text-[#ffffff]'
+                : 'bg-[#141414] border-[#262626] text-[#777777] hover:border-[#383838]'
             }`}
           >
-            <div className="space-y-1">
-              <span className="font-semibold block text-white">Simulate Spot Eviction</span>
-              <span className="text-[11px] block text-slate-400 leading-snug">
-                Triggers agent pre-eviction checkpoint callback and re-acquisition.
+            <div className="space-y-0.5">
+              <span className="font-semibold block text-[#cccccc]">Spot Eviction Preemption</span>
+              <span className="text-[10px] text-[#666666] block">
+                Triggers agent pre-eviction snapshot & reacquisition.
               </span>
             </div>
-            <div className={`w-4 h-4 rounded shrink-0 flex items-center justify-center mt-0.5 ${
-              chaos.simulateSpotEviction ? 'bg-amber-500 text-slate-950' : 'bg-slate-800'
+            <div className={`w-3.5 h-3.5 rounded-sm shrink-0 flex items-center justify-center mt-0.5 ${
+              chaos.simulateSpotEviction ? 'bg-[#0078d4] text-white' : 'bg-[#2b2b2b]'
             }`}>
-              {chaos.simulateSpotEviction && <Check className="w-3 h-3 stroke-[3]" />}
+              {chaos.simulateSpotEviction && <Check className="w-2.5 h-2.5 stroke-[3]" />}
             </div>
           </div>
 
           {/* Browser Disconnect */}
           <div 
             onClick={() => onUpdateChaos({ ...chaos, simulateBrowserDisconnect: !chaos.simulateBrowserDisconnect })}
-            className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start justify-between ${
+            className={`p-2 border cursor-pointer flex items-start justify-between transition-colors ${
               chaos.simulateBrowserDisconnect
-                ? 'bg-indigo-950/40 border-indigo-500/60 text-indigo-200'
-                : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                ? 'bg-[#1e1e1e] border-[#0078d4] text-[#ffffff]'
+                : 'bg-[#141414] border-[#262626] text-[#777777] hover:border-[#383838]'
             }`}
           >
-            <div className="space-y-1">
-              <span className="font-semibold block text-white">Browser Disconnection</span>
-              <span className="text-[11px] block text-slate-400 leading-snug">
-                Tests Invariant I11: client drops WebSocket; background jobs continue.
+            <div className="space-y-0.5">
+              <span className="font-semibold block text-[#cccccc]">Browser Disconnection</span>
+              <span className="text-[10px] text-[#666666] block">
+                Tests Invariant I11: client disconnects while jobs run.
               </span>
             </div>
-            <div className={`w-4 h-4 rounded shrink-0 flex items-center justify-center mt-0.5 ${
-              chaos.simulateBrowserDisconnect ? 'bg-indigo-500 text-slate-950' : 'bg-slate-800'
+            <div className={`w-3.5 h-3.5 rounded-sm shrink-0 flex items-center justify-center mt-0.5 ${
+              chaos.simulateBrowserDisconnect ? 'bg-[#0078d4] text-white' : 'bg-[#2b2b2b]'
             }`}>
-              {chaos.simulateBrowserDisconnect && <Check className="w-3 h-3 stroke-[3]" />}
+              {chaos.simulateBrowserDisconnect && <Check className="w-2.5 h-2.5 stroke-[3]" />}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Subsystem Certification Suites */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* Subsystem Test Suites */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {/* Part A Suite */}
-        <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/40 space-y-3 font-mono text-xs">
+        <div className="p-3 border border-[#282828] bg-[#181818] space-y-2 font-mono text-[11px]">
           <div className="flex items-center justify-between">
-            <div>
-              <span className="text-white font-bold block">Part A Acceptance Suite</span>
-              <span className="text-[11px] text-slate-400 font-sans">
-                Tested against FakeComputeBroker (Zero Cloud SDK imports)
-              </span>
-            </div>
+            <span className="text-white font-semibold">Part A Acceptance Suite</span>
             <button
               onClick={() => runSuite('part_a')}
               disabled={runningSuite !== null}
-              className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white font-sans text-xs font-semibold flex items-center gap-1.5 transition-colors"
+              className="h-[22px] px-2.5 bg-[#0078d4] hover:bg-[#006bbd] text-white rounded-sm text-[10px] flex items-center gap-1 transition-colors"
             >
-              <RotateCw className={`w-3 h-3 ${runningSuite === 'part_a' ? 'animate-spin' : ''}`} />
+              <RotateCw className={`w-2.5 h-2.5 ${runningSuite === 'part_a' ? 'animate-spin' : ''}`} />
               <span>Run Suite</span>
             </button>
           </div>
 
-          <div className="p-3 rounded-lg bg-slate-950 border border-slate-800/80 space-y-1 text-[11px] text-slate-300 max-h-56 overflow-y-auto">
+          <div className="p-2 bg-[#141414] border border-[#242424] space-y-0.5 text-[10px] max-h-48 overflow-y-auto leading-relaxed">
             {partAResult.logs.map((log, idx) => (
-              <div key={idx} className={log.includes('PASSED') ? 'text-emerald-400' : 'text-slate-400'}>
+              <div key={idx} className={log.includes('PASSED') ? 'text-[#4ec9b0]' : 'text-[#777777]'}>
                 {log}
               </div>
             ))}
@@ -288,27 +268,22 @@ export const VerificationTestbed: React.FC<VerificationTestbedProps> = ({
         </div>
 
         {/* Part B Suite */}
-        <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/40 space-y-3 font-mono text-xs">
+        <div className="p-3 border border-[#282828] bg-[#181818] space-y-2 font-mono text-[11px]">
           <div className="flex items-center justify-between">
-            <div>
-              <span className="text-white font-bold block">Part B Conformance Suite</span>
-              <span className="text-[11px] text-slate-400 font-sans">
-                Tested against FakeRegistrationSink (Zero Notebook/uv imports)
-              </span>
-            </div>
+            <span className="text-white font-semibold">Part B Conformance Suite</span>
             <button
               onClick={() => runSuite('part_b')}
               disabled={runningSuite !== null}
-              className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white font-sans text-xs font-semibold flex items-center gap-1.5 transition-colors"
+              className="h-[22px] px-2.5 bg-[#0078d4] hover:bg-[#006bbd] text-white rounded-sm text-[10px] flex items-center gap-1 transition-colors"
             >
-              <RotateCw className={`w-3 h-3 ${runningSuite === 'part_b' ? 'animate-spin' : ''}`} />
+              <RotateCw className={`w-2.5 h-2.5 ${runningSuite === 'part_b' ? 'animate-spin' : ''}`} />
               <span>Run Suite</span>
             </button>
           </div>
 
-          <div className="p-3 rounded-lg bg-slate-950 border border-slate-800/80 space-y-1 text-[11px] text-slate-300 max-h-56 overflow-y-auto">
+          <div className="p-2 bg-[#141414] border border-[#242424] space-y-0.5 text-[10px] max-h-48 overflow-y-auto leading-relaxed">
             {partBResult.logs.map((log, idx) => (
-              <div key={idx} className={log.includes('PASSED') ? 'text-emerald-400' : 'text-slate-400'}>
+              <div key={idx} className={log.includes('PASSED') ? 'text-[#4ec9b0]' : 'text-[#777777]'}>
                 {log}
               </div>
             ))}
@@ -316,30 +291,22 @@ export const VerificationTestbed: React.FC<VerificationTestbedProps> = ({
         </div>
       </div>
 
-      {/* Canonical Journey Card */}
-      <div className="p-5 rounded-2xl border border-slate-800 bg-slate-900/40 space-y-3 font-mono text-xs">
+      {/* Canonical Journey */}
+      <div className="p-3 border border-[#282828] bg-[#181818] space-y-2 font-mono text-[11px]">
         <div className="flex items-center justify-between">
-          <div>
-            <span className="text-white font-bold text-sm block">
-              Canonical User Journey (Section 17 Release Gate)
-            </span>
-            <span className="text-[11px] text-slate-400 font-sans">
-              Connect Provider → Select Repo → Detect Env → Launch → Verified All-Ready → CUDA Tensor Test → Detached Job → Reconnect → Cleanup
-            </span>
-          </div>
+          <span className="text-white font-semibold">Canonical End-to-End User Journey (Section 17)</span>
           <button
             onClick={() => runSuite('canonical')}
             disabled={runningSuite !== null}
-            className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-sans text-xs font-semibold flex items-center gap-1.5 transition-colors"
+            className="h-[22px] px-3 bg-[#242424] hover:bg-[#2e2e2e] border border-[#333333] text-[#cccccc] rounded-sm text-[10px] flex items-center gap-1 transition-colors"
           >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Certify Canonical Journey</span>
+            <span>Certify Journey</span>
           </button>
         </div>
 
-        <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 space-y-1 text-[11px]">
+        <div className="p-2 bg-[#141414] border border-[#242424] space-y-0.5 text-[10px]">
           {canonicalResult.logs.map((log, idx) => (
-            <div key={idx} className={log.includes('PASSED') || log.includes('PASSED ALL') ? 'text-emerald-400 font-bold' : 'text-slate-300'}>
+            <div key={idx} className={log.includes('PASSED') ? 'text-[#4ec9b0] font-semibold' : 'text-[#777777]'}>
               {log}
             </div>
           ))}

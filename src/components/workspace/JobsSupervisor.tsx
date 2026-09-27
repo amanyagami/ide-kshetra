@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Pause, Square, Activity, Cpu, Layers, HardDrive } from 'lucide-react';
+import { Play, Pause } from 'lucide-react';
 import { DetachedJob } from '../../types/fabric';
 
 export const JobsSupervisor: React.FC = () => {
@@ -25,7 +25,6 @@ export const JobsSupervisor: React.FC = () => {
     },
   ]);
 
-  // Live timer simulation for running jobs
   useEffect(() => {
     const timer = setInterval(() => {
       setJobs(prevJobs =>
@@ -60,106 +59,81 @@ export const JobsSupervisor: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-950 font-mono text-xs text-slate-200 overflow-y-auto p-4 space-y-4">
-      {/* Background Persistence Banner */}
-      <div className="p-3 rounded-lg border border-indigo-900/60 bg-indigo-950/20 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Activity className="w-4 h-4 text-indigo-400 shrink-0" />
-          <div className="text-xs">
-            <span className="font-semibold text-white">Fabric Agent Job Supervisor (Invariant I11)</span>
-            <span className="text-slate-400 block text-[11px]">
-              Jobs run inside the remote agent process. Closing the browser or switching networks will NOT interrupt active workloads.
-            </span>
-          </div>
-        </div>
-        <span className="text-emerald-400 font-mono text-xs">1 Active Job</span>
+    <div className="flex-1 flex flex-col h-full bg-[#181818] font-mono text-[11px] text-[#cccccc] overflow-y-auto p-3 space-y-3 select-none">
+      {/* Informational Header Strip */}
+      <div className="flex items-center justify-between text-[#858585] text-[10px] pb-1 border-b border-[#282828]">
+        <span>AGENT SUPERVISOR · INVARIANT I11 (BROWSER LIFECYCLE DECOUPLED FROM WORKLOAD)</span>
+        <span className="text-[#4ec9b0]">1 active job</span>
       </div>
 
-      {/* Jobs List */}
+      {/* Jobs Table */}
       {jobs.map(job => (
-        <div 
-          key={job.id} 
-          className="p-4 rounded-xl border border-slate-800 bg-slate-900/50 space-y-3"
-        >
+        <div key={job.id} className="border border-[#282828] bg-[#1e1e1e] p-2.5 space-y-2">
           {/* Header Row */}
           <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-white">{job.name}</span>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 font-mono">
-                  PID {job.pid}
-                </span>
-                <span className="text-slate-500 text-xs">· started {job.startedAt}</span>
-              </div>
-              <div className="text-[11px] text-cyan-400/90 font-mono mt-0.5 truncate">
-                $ {job.command}
-              </div>
-            </div>
-
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => toggleJob(job.id)}
-                className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-1.5 transition-colors"
-              >
-                {job.status === 'running' ? (
-                  <>
-                    <Pause className="w-3 h-3 text-amber-400 fill-current" />
-                    <span>Pause</span>
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-3 h-3 text-emerald-400 fill-current" />
-                    <span>Resume</span>
-                  </>
-                )}
-              </button>
+              <span className="font-semibold text-[#ffffff]">{job.name}</span>
+              <span className="text-[10px] font-mono text-[#858585] bg-[#141414] px-1.5 py-0.5 rounded-sm border border-[#2b2b2b]">
+                PID {job.pid}
+              </span>
+              <span className="text-[#666666]">· {job.startedAt}</span>
+            </div>
+
+            <button
+              onClick={() => toggleJob(job.id)}
+              className="h-[20px] px-2 rounded-sm bg-[#252525] hover:bg-[#2e2e2e] text-[#cccccc] flex items-center gap-1 transition-colors text-[10px]"
+            >
+              {job.status === 'running' ? (
+                <>
+                  <Pause className="w-2.5 h-2.5 text-[#cca700] fill-current" />
+                  <span>Pause</span>
+                </>
+              ) : (
+                <>
+                  <Play className="w-2.5 h-2.5 text-[#4ec9b0] fill-current" />
+                  <span>Resume</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          <div className="text-[10px] text-[#858585] truncate">
+            $ {job.command}
+          </div>
+
+          {/* Metrics Grid */}
+          <div className="grid grid-cols-4 gap-2 p-2 bg-[#161616] border border-[#242424] text-[10px]">
+            <div>
+              <span className="text-[#555555] block">EPOCH</span>
+              <span className="text-[#ffffff] font-bold">{job.currentEpoch} / {job.totalEpochs}</span>
+            </div>
+            <div>
+              <span className="text-[#555555] block">LOSS</span>
+              <span className="text-[#ce9178] font-bold">{job.loss.toFixed(4)}</span>
+            </div>
+            <div>
+              <span className="text-[#555555] block">VRAM</span>
+              <span className="text-[#cccccc] font-bold">{job.vramUsedGB} GB</span>
+            </div>
+            <div>
+              <span className="text-[#555555] block">DURATION</span>
+              <span className="text-[#cccccc] font-bold">{Math.floor(job.durationSec / 60)}m {job.durationSec % 60}s</span>
             </div>
           </div>
 
-          {/* Metrics Row */}
-          <div className="grid grid-cols-4 gap-3 p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/60">
-            <div>
-              <span className="text-[10px] text-slate-500 uppercase tracking-wider block">Epoch Progress</span>
-              <span className="text-sm font-bold text-white font-mono">
-                {job.currentEpoch} / {job.totalEpochs}
-              </span>
-            </div>
-
-            <div>
-              <span className="text-[10px] text-slate-500 uppercase tracking-wider block">Loss</span>
-              <span className="text-sm font-bold text-cyan-400 font-mono">
-                {job.loss.toFixed(4)}
-              </span>
-            </div>
-
-            <div>
-              <span className="text-[10px] text-slate-500 uppercase tracking-wider block">VRAM Consumed</span>
-              <span className="text-sm font-bold text-emerald-400 font-mono">
-                {job.vramUsedGB} GB
-              </span>
-            </div>
-
-            <div>
-              <span className="text-[10px] text-slate-500 uppercase tracking-wider block">Duration</span>
-              <span className="text-sm font-bold text-slate-300 font-mono">
-                {Math.floor(job.durationSec / 60)}m {job.durationSec % 60}s
-              </span>
-            </div>
-          </div>
-
-          {/* Progress Bar */}
-          <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+          {/* Linear Progress Bar */}
+          <div className="w-full bg-[#141414] h-[3px]">
             <div 
-              className="bg-cyan-500 h-full rounded-full transition-all duration-300"
+              className="bg-[#0078d4] h-full"
               style={{ width: `${(job.currentEpoch / job.totalEpochs) * 100}%` }}
             />
           </div>
 
-          {/* Logs */}
-          <div className="p-2.5 rounded bg-slate-950 border border-slate-800/50 text-[11px] text-slate-400 font-mono space-y-1">
+          {/* Recent Log Lines */}
+          <div className="p-1.5 bg-[#141414] border border-[#222222] text-[10px] text-[#777777] space-y-0.5 select-text">
             {job.logs.map((log, lIdx) => (
-              <div key={lIdx} className="leading-relaxed">
-                <span className="text-cyan-500">&gt; </span>
+              <div key={lIdx} className="leading-snug">
+                <span className="text-[#444444]">&gt; </span>
                 {log}
               </div>
             ))}

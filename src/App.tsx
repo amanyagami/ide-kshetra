@@ -1,7 +1,7 @@
 /**
  * EXECUTION FABRIC
- * SOTA-Oriented, Open-Source-First Cloud IDE & Multi-Cloud Compute Fabric
- * Version 2.0 Production System Design
+ * Production SOTA Multi-Cloud Cloud IDE & Universal Execution Core
+ * Quiet, dark, grayscale-dominant theme with single restrained accent
  */
 
 import React, { useState, useEffect } from 'react';
@@ -22,6 +22,8 @@ import { environmentCompiler } from './services/environmentCompiler';
 import { initialReadinessChecks, runReadinessVerification } from './services/readinessVerifier';
 
 import { TopBar } from './components/navigation/TopBar';
+import { ActivityBar } from './components/navigation/ActivityBar';
+import { StatusBar } from './components/navigation/StatusBar';
 import { WorkspaceLayout } from './components/workspace/WorkspaceLayout';
 import { ComputeSelector } from './components/compute/ComputeSelector';
 import { EnvironmentPanel } from './components/environment/EnvironmentPanel';
@@ -31,17 +33,21 @@ import { ArchitectureViewer } from './components/architecture/ArchitectureViewer
 import { LaunchModal } from './components/workspace/LaunchModal';
 
 export default function App() {
-  // Navigation View State
   const [activeView, setActiveView] = useState<'workspace' | 'compute' | 'environment' | 'providers' | 'verification' | 'spec'>('workspace');
 
-  // Core Execution Fabric State
+  // Layout Panels Visibility
+  const [showSidebar, setShowSidebar] = useState<boolean>(true);
+  const [showBottomPanel, setShowBottomPanel] = useState<boolean>(true);
+  const [showInspector, setShowInspector] = useState<boolean>(true);
+
+  // Core State
   const [files] = useState<RepositoryFile[]>([...mockRepositoryFiles]);
   const [lease, setLease] = useState<NodeLease | null>(null);
   const [selectedOfferId, setSelectedOfferId] = useState<string>('offer-gmi-h200');
   const [telemetry, setTelemetry] = useState<GpuTelemetry>({ ...defaultGpuTelemetry });
   const [readinessChecks, setReadinessChecks] = useState<ReadinessCheck[]>([...initialReadinessChecks]);
   
-  // Pipeline & Trace Events
+  // Pipeline & Telemetry Events
   const [isLaunching, setIsLaunching] = useState<boolean>(false);
   const [isLaunchModalOpen, setIsLaunchModalOpen] = useState<boolean>(false);
   const [traceEvents, setTraceEvents] = useState<TraceEvent[]>([]);
@@ -64,27 +70,27 @@ export default function App() {
   );
   const envArtifact = environmentCompiler.buildAndSignArtifact(envSpec);
 
-  // Initial Auto-Launch simulation on startup so user lands directly in verified state
+  // Initial Auto-Launch simulation on startup so user lands in ready state
   useEffect(() => {
     executeLaunchPipeline(false);
   }, []);
 
-  // Telemetry fluctuation simulator (shows live hardware activity)
+  // Periodic GPU telemetry variation (calm, real-looking)
   useEffect(() => {
     const interval = setInterval(() => {
       setTelemetry(prev => {
-        const utilDelta = (Math.random() - 0.5) * 6;
-        const tempDelta = (Math.random() - 0.5) * 1.5;
-        const powerDelta = (Math.random() - 0.5) * 20;
+        const utilDelta = (Math.random() - 0.5) * 4;
+        const tempDelta = (Math.random() - 0.5) * 0.8;
+        const powerDelta = (Math.random() - 0.5) * 12;
 
         return {
           ...prev,
-          gpuUtilPercent: Math.min(100, Math.max(12, Math.round(prev.gpuUtilPercent + utilDelta))),
-          temperatureC: Math.min(85, Math.max(38, Math.round(prev.temperatureC + tempDelta))),
-          powerWatts: Math.min(700, Math.max(180, Math.round(prev.powerWatts + powerDelta))),
+          gpuUtilPercent: Math.min(100, Math.max(15, Math.round(prev.gpuUtilPercent + utilDelta))),
+          temperatureC: Math.min(85, Math.max(40, Math.round(prev.temperatureC + tempDelta))),
+          powerWatts: Math.min(700, Math.max(220, Math.round(prev.powerWatts + powerDelta))),
         };
       });
-    }, 2500);
+    }, 3000);
 
     return () => clearInterval(interval);
   }, []);
@@ -143,13 +149,11 @@ export default function App() {
     executeLaunchPipeline(true);
   };
 
-  const avatarUrl = '/src/assets/images/avatar_engineer_1790479540008.jpg';
-  const gpuImageThumbnail = '/src/assets/images/gpu_accelerator_chip_1790479549433.jpg';
   const isReadinessReady = readinessChecks.every(c => c.status === 'passed') && !isLaunching;
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-950 font-sans text-slate-100 selection:bg-cyan-500/30">
-      {/* 1. Universal Top Navigation Bar */}
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#1e1e1e] text-[#cccccc] font-sans antialiased">
+      {/* 1. Editor Title Bar (35px) */}
       <TopBar
         activeView={activeView}
         setActiveView={setActiveView}
@@ -157,57 +161,86 @@ export default function App() {
         readinessReady={isReadinessReady}
         onLaunchClick={() => executeLaunchPipeline(true)}
         isLaunching={isLaunching}
-        avatarUrl={avatarUrl}
+        showSidebar={showSidebar}
+        onToggleSidebar={() => setShowSidebar(!showSidebar)}
+        showBottomPanel={showBottomPanel}
+        onToggleBottomPanel={() => setShowBottomPanel(!showBottomPanel)}
+        showInspector={showInspector}
+        onToggleInspector={() => setShowInspector(!showInspector)}
       />
 
-      {/* 2. Main Viewport Router */}
-      <main className="flex-1 overflow-hidden flex flex-col">
-        {activeView === 'workspace' && (
-          <WorkspaceLayout
-            files={files}
-            lease={lease}
-            telemetry={telemetry}
-            readinessChecks={readinessChecks}
-            onReverifyReadiness={() => executeLaunchPipeline(true)}
-            isVerifying={isLaunching}
-            gpuImageThumbnail={gpuImageThumbnail}
-            onExecuteTerminalCommand={(cmd) => {
-              // Terminal dispatch callback
-            }}
-          />
-        )}
+      {/* 2. Main Body: Activity Bar + Active Viewport */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Activity Bar (48px) */}
+        <ActivityBar
+          activeView={activeView}
+          setActiveView={setActiveView}
+        />
 
-        {activeView === 'compute' && (
-          <ComputeSelector
-            onSelectAndLaunch={handleSelectOfferAndLaunch}
-            selectedOfferId={selectedOfferId}
-          />
-        )}
+        {/* Viewport content */}
+        <main className="flex-1 overflow-hidden flex flex-col">
+          {activeView === 'workspace' && (
+            <WorkspaceLayout
+              files={files}
+              lease={lease}
+              telemetry={telemetry}
+              readinessChecks={readinessChecks}
+              onReverifyReadiness={() => executeLaunchPipeline(true)}
+              isVerifying={isLaunching}
+              onExecuteTerminalCommand={() => {}}
+              showSidebar={showSidebar}
+              showBottomPanel={showBottomPanel}
+              showInspector={showInspector}
+            />
+          )}
 
-        {activeView === 'environment' && (
-          <EnvironmentPanel
-            spec={envSpec}
-            artifact={envArtifact}
-          />
-        )}
+          {activeView === 'compute' && (
+            <ComputeSelector
+              onSelectAndLaunch={handleSelectOfferAndLaunch}
+              selectedOfferId={selectedOfferId}
+            />
+          )}
 
-        {activeView === 'providers' && (
-          <ProviderManager />
-        )}
+          {activeView === 'environment' && (
+            <EnvironmentPanel
+              spec={envSpec}
+              artifact={envArtifact}
+            />
+          )}
 
-        {activeView === 'verification' && (
-          <VerificationTestbed
-            chaos={chaos}
-            onUpdateChaos={setChaos}
-          />
-        )}
+          {activeView === 'providers' && (
+            <ProviderManager />
+          )}
 
-        {activeView === 'spec' && (
-          <ArchitectureViewer />
-        )}
-      </main>
+          {activeView === 'verification' && (
+            <VerificationTestbed
+              chaos={chaos}
+              onUpdateChaos={setChaos}
+            />
+          )}
 
-      {/* 3. Real-Time Launch & Readiness Verification Modal */}
+          {activeView === 'spec' && (
+            <ArchitectureViewer />
+          )}
+        </main>
+      </div>
+
+      {/* 3. Status Bar (22px) */}
+      <StatusBar
+        lease={lease}
+        readinessReady={isReadinessReady}
+        onOpenTerminal={() => {
+          setActiveView('workspace');
+          setShowBottomPanel(true);
+        }}
+        onOpenReadiness={() => {
+          setActiveView('workspace');
+          setShowInspector(true);
+        }}
+        onOpenCompute={() => setActiveView('compute')}
+      />
+
+      {/* 4. Launch & Readiness Verification Modal Dialog */}
       <LaunchModal
         isOpen={isLaunchModalOpen}
         onClose={() => setIsLaunchModalOpen(false)}

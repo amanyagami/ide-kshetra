@@ -1,17 +1,12 @@
 import React, { useState } from 'react';
 import { 
-  BookOpen, 
-  FileCode, 
-  Terminal, 
-  Activity, 
   Columns, 
-  Maximize2, 
-  Minimize2, 
   ChevronUp, 
-  ChevronDown,
-  Layers,
-  X,
-  Play
+  ChevronDown, 
+  X, 
+  Terminal, 
+  Activity,
+  FolderOpen
 } from 'lucide-react';
 import { 
   RepositoryFile, 
@@ -34,8 +29,10 @@ interface WorkspaceLayoutProps {
   readinessChecks: ReadinessCheck[];
   onReverifyReadiness: () => void;
   isVerifying: boolean;
-  gpuImageThumbnail: string;
   onExecuteTerminalCommand: (cmd: string) => void;
+  showSidebar: boolean;
+  showBottomPanel: boolean;
+  showInspector: boolean;
 }
 
 export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
@@ -45,20 +42,20 @@ export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
   readinessChecks,
   onReverifyReadiness,
   isVerifying,
-  gpuImageThumbnail,
   onExecuteTerminalCommand,
+  showSidebar,
+  showBottomPanel,
+  showInspector,
 }) => {
-  // Active open file paths in editor
   const [openFiles, setOpenFiles] = useState<string[]>([
     'notebooks/training.ipynb',
     'src/project/train.py',
   ]);
   const [activeFilePath, setActiveFilePath] = useState<string>('notebooks/training.ipynb');
   const [splitView, setSplitView] = useState<boolean>(false);
-  const [bottomTab, setBottomTab] = useState<'terminal' | 'jobs' | 'closed'>('terminal');
+  const [bottomTab, setBottomTab] = useState<'terminal' | 'jobs'>('terminal');
   const [terminalDispatchCommand, setTerminalDispatchCommand] = useState<string | undefined>(undefined);
 
-  // Flattened file lookup helper
   const findFileByPath = (path: string, items: RepositoryFile[]): RepositoryFile | null => {
     for (const item of items) {
       if (item.path === path) return item;
@@ -90,7 +87,6 @@ export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
   const pythonFile = findFileByPath('src/project/train.py', files)!;
 
   const handleUpdateCells = (newCells: NotebookCell[]) => {
-    // Updates notebook cells in activeFile
     if (activeFile.cells) {
       activeFile.cells = newCells;
     }
@@ -111,168 +107,156 @@ export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
   const isGpuReady = readinessChecks.find(c => c.id === 'cuda_tensor_exec')?.status === 'passed';
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-950 overflow-hidden text-slate-200">
-      {/* Workspace Sub-header (Tabs and View Controls) */}
-      <div className="h-9 border-b border-slate-800 bg-slate-950 flex items-center justify-between px-3 shrink-0 select-none">
-        {/* Open File Tabs */}
-        <div className="flex items-center gap-1 overflow-x-auto py-1">
-          {openFiles.map(path => {
-            const isActive = activeFilePath === path;
-            const isNotebook = path.endsWith('.ipynb');
-
-            return (
-              <div
-                key={path}
-                onClick={() => setActiveFilePath(path)}
-                className={`h-7 px-3 rounded-t-md text-xs font-mono flex items-center gap-2 cursor-pointer transition-colors border-t border-x ${
-                  isActive
-                    ? 'bg-slate-900 border-slate-700 text-white font-medium'
-                    : 'bg-slate-950/60 border-transparent text-slate-500 hover:text-slate-300'
-                }`}
-              >
-                {isNotebook ? (
-                  <BookOpen className="w-3.5 h-3.5 text-amber-400" />
-                ) : (
-                  <FileCode className="w-3.5 h-3.5 text-sky-400" />
-                )}
-                <span>{path.split('/').pop()}</span>
-                {openFiles.length > 1 && (
-                  <button
-                    onClick={(e) => closeTab(path, e)}
-                    className="p-0.5 hover:text-rose-400 rounded transition-colors ml-1"
-                  >
-                    <X className="w-2.5 h-2.5" />
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* View Mode Controls */}
-        <div className="flex items-center gap-2 text-xs">
-          <button
-            onClick={() => setSplitView(!splitView)}
-            className={`px-2 py-1 rounded flex items-center gap-1 transition-colors ${
-              splitView
-                ? 'bg-cyan-950 text-cyan-300 border border-cyan-800'
-                : 'text-slate-400 hover:text-white hover:bg-slate-900'
-            }`}
-            title="Split Workspace: .ipynb and .py simultaneously"
-          >
-            <Columns className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Split Editor</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Main Workspace Body (3-Column Layout: Files | Canvas | Inspector) */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* 1. File Explorer */}
+    <div className="flex-1 flex overflow-hidden bg-[#1e1e1e] text-[#cccccc]">
+      {/* 1. Primary Collapsible Sidebar: File Explorer */}
+      {showSidebar && (
         <FileExplorer
           files={files}
           activeFilePath={activeFilePath}
           onSelectFile={handleSelectFile}
         />
+      )}
 
-        {/* 2. Center Canvas: Single or Split View */}
-        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-          <div className="flex-1 flex overflow-hidden">
-            {/* Primary Editor Pane */}
-            <div className={`flex-1 flex overflow-hidden ${splitView ? 'border-r border-slate-800' : ''}`}>
-              {activeFile.name.endsWith('.ipynb') && activeFile.cells ? (
-                <NotebookEditor
-                  cells={activeFile.cells}
-                  onUpdateCells={handleUpdateCells}
-                  gpuModel={lease?.capabilities.gpuModel || 'NVIDIA H200 SXM'}
-                  isGpuReady={isGpuReady}
-                />
-              ) : (
-                <CodeEditor
-                  file={activeFile}
-                  onSaveContent={handleSaveFileContent}
-                  onRunInTerminal={handleRunInTerminal}
-                />
-              )}
-            </div>
+      {/* 2. Main Editor & Bottom Panel Container */}
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        {/* Editor Tabs: Compact, rectangular, VS Code style */}
+        <div className="h-[30px] bg-[#141414] border-b border-[#282828] flex items-center justify-between select-none shrink-0">
+          <div className="flex items-center h-full overflow-x-auto">
+            {openFiles.map(path => {
+              const isActive = activeFilePath === path;
+              const fileName = path.split('/').pop() || path;
+              const isNotebook = path.endsWith('.ipynb');
 
-            {/* Split Secondary Pane (shows Python package code alongside notebook) */}
-            {splitView && (
-              <div className="flex-1 flex overflow-hidden">
-                <CodeEditor
-                  file={pythonFile}
-                  onSaveContent={handleSaveFileContent}
-                  onRunInTerminal={handleRunInTerminal}
-                />
-              </div>
-            )}
+              return (
+                <div
+                  key={path}
+                  onClick={() => setActiveFilePath(path)}
+                  className={`h-full px-3 flex items-center gap-2 cursor-pointer text-[12px] border-r border-[#242424] transition-colors relative ${
+                    isActive
+                      ? 'bg-[#1e1e1e] text-[#ffffff] font-normal border-t border-t-[#0078d4]'
+                      : 'bg-[#141414] text-[#858585] hover:text-[#cccccc] hover:bg-[#1a1a1a]'
+                  }`}
+                >
+                  <span className={`text-[10px] font-mono font-bold ${isNotebook ? 'text-[#dcdcaa]' : 'text-[#569cd6]'}`}>
+                    {isNotebook ? 'ipynb' : 'py'}
+                  </span>
+                  <span>{fileName}</span>
+                  {openFiles.length > 1 && (
+                    <button
+                      onClick={(e) => closeTab(path, e)}
+                      className="p-0.5 hover:text-[#ffffff] rounded-sm transition-colors text-[#5a5a5a]"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
-          {/* 3. Bottom Drawer: Terminal & Jobs Supervisor */}
-          <div className="border-t border-slate-800 bg-slate-950 flex flex-col shrink-0 select-none">
-            {/* Drawer Tab Headers */}
-            <div className="h-8 px-4 border-b border-slate-800/80 bg-slate-900/40 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setBottomTab(bottomTab === 'terminal' ? 'closed' : 'terminal')}
-                  className={`flex items-center gap-1.5 py-1 transition-colors ${
-                    bottomTab === 'terminal' 
-                      ? 'text-cyan-400 font-semibold border-b-2 border-cyan-400' 
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <Terminal className="w-3.5 h-3.5" />
-                  <span>Interactive Terminal</span>
-                </button>
-
-                <button
-                  onClick={() => setBottomTab(bottomTab === 'jobs' ? 'closed' : 'jobs')}
-                  className={`flex items-center gap-1.5 py-1 transition-colors ${
-                    bottomTab === 'jobs' 
-                      ? 'text-cyan-400 font-semibold border-b-2 border-cyan-400' 
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <Activity className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Detached Jobs (Invariant I11)</span>
-                </button>
-              </div>
-
-              <button
-                onClick={() => setBottomTab(bottomTab === 'closed' ? 'terminal' : 'closed')}
-                className="text-slate-500 hover:text-slate-300 p-1"
-                title={bottomTab === 'closed' ? 'Expand bottom drawer' : 'Collapse bottom drawer'}
-              >
-                {bottomTab === 'closed' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              </button>
-            </div>
-
-            {/* Drawer Content */}
-            {bottomTab !== 'closed' && (
-              <div className="h-56 overflow-hidden">
-                {bottomTab === 'terminal' ? (
-                  <TerminalPanel 
-                    initialCommand={terminalDispatchCommand} 
-                    onClearInitialCommand={() => setTerminalDispatchCommand(undefined)} 
-                  />
-                ) : (
-                  <JobsSupervisor />
-                )}
-              </div>
-            )}
+          <div className="flex items-center px-2 text-[#777777]">
+            <button
+              onClick={() => setSplitView(!splitView)}
+              className={`p-1 hover:text-[#cccccc] rounded-sm transition-colors ${splitView ? 'text-[#0078d4]' : ''}`}
+              title="Split Editor Right"
+            >
+              <Columns className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
 
-        {/* 4. Right Inspector Sidebar */}
+        {/* Editor Breadcrumb Line */}
+        <div className="h-[22px] px-3 bg-[#1e1e1e] border-b border-[#242424] flex items-center gap-1.5 text-[11px] text-[#666666] select-none font-mono">
+          <span>gemma-agent-core</span>
+          <span>&gt;</span>
+          <span>{activeFilePath.replace(/\//g, ' > ')}</span>
+        </div>
+
+        {/* Editor Body: Single or Split View */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Main Pane */}
+          <div className={`flex-1 flex overflow-hidden ${splitView ? 'border-r border-[#282828]' : ''}`}>
+            {activeFile.name.endsWith('.ipynb') && activeFile.cells ? (
+              <NotebookEditor
+                cells={activeFile.cells}
+                onUpdateCells={handleUpdateCells}
+                gpuModel={lease?.capabilities.gpuModel || 'NVIDIA H200 SXM'}
+                isGpuReady={isGpuReady}
+              />
+            ) : (
+              <CodeEditor
+                file={activeFile}
+                onSaveContent={handleSaveFileContent}
+                onRunInTerminal={handleRunInTerminal}
+              />
+            )}
+          </div>
+
+          {/* Split Secondary Pane */}
+          {splitView && (
+            <div className="flex-1 flex overflow-hidden">
+              <CodeEditor
+                file={pythonFile}
+                onSaveContent={handleSaveFileContent}
+                onRunInTerminal={handleRunInTerminal}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Bottom Panel (Terminal / Jobs): Collapsible */}
+        {showBottomPanel && (
+          <div className="h-[210px] border-t border-[#282828] bg-[#181818] flex flex-col shrink-0 select-none">
+            {/* Panel Tabs */}
+            <div className="h-[26px] px-2 border-b border-[#282828] bg-[#141414] flex items-center justify-between text-[11px] font-medium text-[#858585]">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setBottomTab('terminal')}
+                  className={`h-[22px] px-2 flex items-center gap-1 transition-colors ${
+                    bottomTab === 'terminal' ? 'text-[#ffffff] border-b border-[#0078d4]' : 'hover:text-[#cccccc]'
+                  }`}
+                >
+                  <Terminal className="w-3 h-3 text-[#0078d4]" />
+                  <span>TERMINAL</span>
+                </button>
+
+                <button
+                  onClick={() => setBottomTab('jobs')}
+                  className={`h-[22px] px-2 flex items-center gap-1 transition-colors ${
+                    bottomTab === 'jobs' ? 'text-[#ffffff] border-b border-[#0078d4]' : 'hover:text-[#cccccc]'
+                  }`}
+                >
+                  <Activity className="w-3 h-3 text-[#4ec9b0]" />
+                  <span>DETACHED JOBS (INVARIANT I11)</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Panel Content */}
+            <div className="flex-1 overflow-hidden">
+              {bottomTab === 'terminal' ? (
+                <TerminalPanel
+                  initialCommand={terminalDispatchCommand}
+                  onClearInitialCommand={() => setTerminalDispatchCommand(undefined)}
+                />
+              ) : (
+                <JobsSupervisor />
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 3. Right Inspector (Fabric Inspector): Collapsible */}
+      {showInspector && (
         <FabricInspector
           lease={lease}
           telemetry={telemetry}
           readinessChecks={readinessChecks}
           onReverifyReadiness={onReverifyReadiness}
           isVerifying={isVerifying}
-          gpuImageThumbnail={gpuImageThumbnail}
         />
-      </div>
+      )}
     </div>
   );
 };

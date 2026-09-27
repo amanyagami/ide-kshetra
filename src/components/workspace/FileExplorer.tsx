@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
 import { 
-  Folder, 
-  FolderOpen, 
-  FileText, 
-  BookOpen, 
   ChevronRight, 
   ChevronDown, 
   FileCode, 
+  FileText, 
   Plus, 
-  GitBranch, 
-  RefreshCw 
+  RefreshCw,
+  FolderPlus,
+  MoreHorizontal
 } from 'lucide-react';
 import { RepositoryFile } from '../../types/fabric';
 
@@ -37,18 +35,34 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
 
   const getFileIcon = (file: RepositoryFile) => {
     if (file.name.endsWith('.ipynb')) {
-      return <BookOpen className="w-3.5 h-3.5 text-amber-400 shrink-0" />;
+      return (
+        <span className="text-[#dcdcaa] text-[10px] font-mono font-bold w-3.5 h-3.5 flex items-center justify-center shrink-0">
+          ipynb
+        </span>
+      );
     }
     if (file.name.endsWith('.py')) {
-      return <FileCode className="w-3.5 h-3.5 text-sky-400 shrink-0" />;
+      return (
+        <span className="text-[#569cd6] text-[10px] font-mono font-bold w-3.5 h-3.5 flex items-center justify-center shrink-0">
+          py
+        </span>
+      );
     }
     if (file.name.endsWith('.toml') || file.name.endsWith('.lock')) {
-      return <FileText className="w-3.5 h-3.5 text-emerald-400 shrink-0" />;
+      return (
+        <span className="text-[#858585] text-[10px] font-mono w-3.5 h-3.5 flex items-center justify-center shrink-0">
+          cfg
+        </span>
+      );
     }
     if (file.name.toLowerCase().includes('docker')) {
-      return <FileText className="w-3.5 h-3.5 text-cyan-400 shrink-0" />;
+      return (
+        <span className="text-[#4ec9b0] text-[10px] font-mono w-3.5 h-3.5 flex items-center justify-center shrink-0">
+          dkr
+        </span>
+      );
     }
-    return <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />;
+    return <FileText className="w-3.5 h-3.5 text-[#858585] shrink-0" />;
   };
 
   const renderFileTree = (items: RepositoryFile[], depth = 0) => {
@@ -59,20 +73,15 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
           <div key={item.path} className="select-none">
             <div
               onClick={() => toggleFolder(item.path)}
-              className="flex items-center gap-1.5 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800/60 rounded cursor-pointer transition-colors"
-              style={{ paddingLeft: `${depth * 14 + 8}px` }}
+              className="flex items-center gap-1 h-[22px] text-[#bbbbbb] hover:bg-[#202020] cursor-pointer text-[12px] transition-colors"
+              style={{ paddingLeft: `${depth * 12 + 6}px` }}
             >
               {isExpanded ? (
-                <ChevronDown className="w-3 h-3 text-slate-500 shrink-0" />
+                <ChevronDown className="w-3 h-3 text-[#858585] shrink-0" />
               ) : (
-                <ChevronRight className="w-3 h-3 text-slate-500 shrink-0" />
+                <ChevronRight className="w-3 h-3 text-[#858585] shrink-0" />
               )}
-              {isExpanded ? (
-                <FolderOpen className="w-3.5 h-3.5 text-cyan-500 shrink-0" />
-              ) : (
-                <Folder className="w-3.5 h-3.5 text-cyan-600 shrink-0" />
-              )}
-              <span className="truncate font-medium">{item.name}</span>
+              <span className="truncate">{item.name}</span>
             </div>
             {isExpanded && item.children && (
               <div>{renderFileTree(item.children, depth + 1)}</div>
@@ -86,70 +95,73 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
         <div
           key={item.path}
           onClick={() => onSelectFile(item)}
-          className={`flex items-center gap-2 px-2 py-1 text-xs rounded cursor-pointer transition-colors select-none ${
+          className={`flex items-center gap-1.5 h-[22px] text-[12px] cursor-pointer select-none transition-colors ${
             isActive
-              ? 'bg-cyan-950/60 text-cyan-200 border-l-2 border-cyan-400 font-medium'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80'
+              ? 'bg-[#252526] text-[#ffffff] font-normal'
+              : 'text-[#969696] hover:text-[#cccccc] hover:bg-[#1f1f1f]'
           }`}
-          style={{ paddingLeft: `${depth * 14 + 18}px` }}
+          style={{ paddingLeft: `${depth * 12 + 18}px` }}
         >
           {getFileIcon(item)}
           <span className="truncate">{item.name}</span>
-          {item.name.endsWith('.ipynb') && (
-            <span className="ml-auto text-[10px] text-amber-500/80 font-mono">nb</span>
-          )}
         </div>
       );
     });
   };
 
   return (
-    <div className="w-60 border-r border-slate-800/80 bg-slate-950 flex flex-col shrink-0 h-full overflow-hidden text-slate-300">
-      {/* File Explorer Header */}
-      <div className="h-9 px-3 border-b border-slate-800/80 flex items-center justify-between text-xs text-slate-400 font-semibold tracking-wider uppercase">
-        <span className="flex items-center gap-1.5">
-          <GitBranch className="w-3 h-3 text-cyan-400" />
-          <span>Files</span>
-        </span>
-        <div className="flex items-center gap-1">
+    <div className="w-[240px] bg-[#181818] border-r border-[#282828] flex flex-col shrink-0 h-full overflow-hidden text-[#cccccc] select-none">
+      {/* Explorer Section Title */}
+      <div className="h-[30px] px-3 flex items-center justify-between text-[11px] font-semibold text-[#8c8c8c] uppercase tracking-wide">
+        <span className="truncate">Explorer</span>
+        <div className="flex items-center gap-1 text-[#666666]">
           <button 
-            title="Create File"
-            className="p-1 hover:text-white rounded hover:bg-slate-800 transition-colors"
+            title="New File" 
+            className="p-1 hover:text-[#cccccc] rounded-sm transition-colors"
           >
             <Plus className="w-3 h-3" />
           </button>
           <button 
-            title="Refresh Filesystem"
-            className="p-1 hover:text-white rounded hover:bg-slate-800 transition-colors"
+            title="New Folder" 
+            className="p-1 hover:text-[#cccccc] rounded-sm transition-colors"
+          >
+            <FolderPlus className="w-3 h-3" />
+          </button>
+          <button 
+            title="Refresh Explorer" 
+            className="p-1 hover:text-[#cccccc] rounded-sm transition-colors"
           >
             <RefreshCw className="w-3 h-3" />
           </button>
         </div>
       </div>
 
-      {/* Repo Context Pill-free metadata */}
-      <div className="px-3 py-2 border-b border-slate-800/60 text-[11px] text-slate-400 bg-slate-900/30 flex items-center justify-between">
-        <span className="font-mono text-slate-300">gemma-agent-core</span>
-        <span className="text-emerald-400 text-[10px]">uv sync ✓</span>
+      {/* Workspace Name Dropdown Header */}
+      <div className="h-[22px] px-2 bg-[#202020] border-t border-b border-[#282828] flex items-center justify-between text-[11px] font-bold text-[#cccccc]">
+        <div className="flex items-center gap-1 truncate">
+          <ChevronDown className="w-3 h-3 text-[#858585] shrink-0" />
+          <span className="truncate uppercase tracking-wider text-[10px]">gemma-agent-core</span>
+        </div>
+        <span className="text-[10px] text-[#666666] font-normal font-mono">main</span>
       </div>
 
-      {/* Tree View */}
-      <div className="flex-1 overflow-y-auto py-1 space-y-0.5">
+      {/* File Tree */}
+      <div className="flex-1 overflow-y-auto py-1">
         {renderFileTree(files)}
       </div>
 
-      {/* Persistence & Volume Indicator */}
-      <div className="p-2 border-t border-slate-800/80 text-[11px] text-slate-400 bg-slate-950 flex flex-col gap-1">
-        <div className="flex items-center justify-between">
-          <span>Storage</span>
-          <span className="font-mono text-slate-200">/workspace (ext4)</span>
+      {/* Storage & Environment Status (Minimal flat footer) */}
+      <div className="p-2 border-t border-[#242424] text-[11px] text-[#666666] bg-[#161616] flex flex-col gap-1">
+        <div className="flex justify-between items-center text-[10px]">
+          <span>WORKSPACE</span>
+          <span className="font-mono text-[#8c8c8c]">ext4 · rw</span>
         </div>
-        <div className="w-full bg-slate-800 rounded-full h-1 overflow-hidden">
-          <div className="bg-cyan-500 h-full rounded-full" style={{ width: '18%' }} />
+        <div className="w-full bg-[#262626] h-[2px]">
+          <div className="bg-[#0078d4] h-full" style={{ width: '18%' }} />
         </div>
-        <div className="flex justify-between text-[10px] text-slate-500 font-mono">
-          <span>72.4 GB used</span>
-          <span>400 GB total</span>
+        <div className="flex justify-between text-[10px] text-[#555555] font-mono">
+          <span>72.4 GB</span>
+          <span>400 GB</span>
         </div>
       </div>
     </div>

@@ -1,15 +1,14 @@
 import React from 'react';
 import { 
   Play, 
-  Terminal, 
-  Layers, 
-  Cpu, 
-  Cloud, 
-  ShieldCheck, 
-  FileCode, 
-  CheckCircle2, 
-  AlertTriangle,
-  RotateCw
+  RotateCw, 
+  Search, 
+  PanelLeft, 
+  PanelBottom, 
+  PanelRight, 
+  Check, 
+  Terminal,
+  Cpu
 } from 'lucide-react';
 import { NodeLease } from '../../types/fabric';
 
@@ -20,7 +19,12 @@ interface TopBarProps {
   readinessReady: boolean;
   onLaunchClick: () => void;
   isLaunching: boolean;
-  avatarUrl: string;
+  showSidebar: boolean;
+  onToggleSidebar: () => void;
+  showBottomPanel: boolean;
+  onToggleBottomPanel: () => void;
+  showInspector: boolean;
+  onToggleInspector: () => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -30,175 +34,114 @@ export const TopBar: React.FC<TopBarProps> = ({
   readinessReady,
   onLaunchClick,
   isLaunching,
-  avatarUrl,
+  showSidebar,
+  onToggleSidebar,
+  showBottomPanel,
+  onToggleBottomPanel,
+  showInspector,
+  onToggleInspector,
 }) => {
   return (
-    <header className="h-14 border-b border-slate-800 bg-slate-950 px-4 flex items-center justify-between select-none z-30 shrink-0">
-      {/* Zone 1: Single text element wordmark & breadcrumb */}
+    <header className="h-[35px] bg-[#141414] border-b border-[#282828] px-2.5 flex items-center justify-between select-none text-[12px] text-[#8c8c8c] shrink-0 z-20">
+      {/* Left: Window Controls / App Wordmark & Context */}
       <div className="flex items-center gap-3 min-w-0">
-        <a 
-          href="/" 
-          onClick={(e) => { e.preventDefault(); setActiveView('workspace'); }}
-          className="text-base font-bold tracking-tight text-white hover:text-cyan-400 transition-colors flex items-center gap-2 shrink-0"
-        >
-          <div className="w-6 h-6 rounded-md bg-gradient-to-tr from-cyan-600 to-indigo-500 flex items-center justify-center text-white text-xs font-mono font-bold shadow-sm">
+        <div className="flex items-center gap-2 text-[#cccccc] font-medium shrink-0">
+          <span className="w-3.5 h-3.5 rounded-sm bg-[#242424] border border-[#333333] flex items-center justify-center text-[9px] font-mono text-[#0078d4] font-bold">
             EF
-          </div>
-          <span>Execution Fabric</span>
-        </a>
-        <span className="text-slate-600 text-xs hidden sm:inline" aria-hidden="true">/</span>
-        <div className="flex items-center gap-1.5 text-xs text-slate-400 truncate">
-          <span className="text-slate-300 font-medium">aman@noahlabs.ai</span>
-          <span className="text-slate-600">/</span>
-          <span className="text-slate-200 font-mono truncate">gemma-agent-core</span>
-          <span className="text-slate-500 hidden md:inline">· main</span>
+          </span>
+          <span className="text-[12px] tracking-tight text-[#d4d4d4] font-semibold">Execution Fabric</span>
+        </div>
+
+        <div className="hidden md:flex items-center gap-1.5 text-[#5a5a5a] text-[11px] truncate">
+          <span className="text-[#8c8c8c]">gemma-agent-core</span>
+          <span>/</span>
+          <span className="text-[#a0a0a0]">notebooks</span>
+          <span>/</span>
+          <span className="text-[#d4d4d4]">training.ipynb</span>
         </div>
       </div>
 
-      {/* Zone 2: 4-6 clean text navigation links */}
-      <nav className="hidden lg:flex items-center gap-1 text-xs font-medium text-slate-400">
-        <button
-          onClick={() => setActiveView('workspace')}
-          className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-colors ${
-            activeView === 'workspace' 
-              ? 'bg-slate-800/80 text-white font-semibold' 
-              : 'hover:text-slate-200 hover:bg-slate-900'
-          }`}
-        >
-          <FileCode className="w-3.5 h-3.5 text-cyan-400" />
-          <span>Workspace</span>
-        </button>
+      {/* Center: Command Palette / Search Trigger */}
+      <div className="flex-1 max-w-sm mx-4 hidden sm:block">
+        <div className="w-full h-[22px] bg-[#1e1e1e] hover:bg-[#252525] border border-[#2b2b2b] rounded-sm px-2 flex items-center gap-1.5 text-[11px] text-[#6e6e6e] cursor-pointer transition-colors">
+          <Search className="w-3 h-3 text-[#666666] shrink-0" />
+          <span className="truncate">gemma-agent-core (Go to File... ⌘P)</span>
+        </div>
+      </div>
 
-        <button
-          onClick={() => setActiveView('compute')}
-          className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-colors ${
-            activeView === 'compute' 
-              ? 'bg-slate-800/80 text-white font-semibold' 
-              : 'hover:text-slate-200 hover:bg-slate-900'
-          }`}
-        >
-          <Cpu className="w-3.5 h-3.5 text-indigo-400" />
-          <span>Compute Fleet</span>
-        </button>
-
-        <button
-          onClick={() => setActiveView('environment')}
-          className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-colors ${
-            activeView === 'environment' 
-              ? 'bg-slate-800/80 text-white font-semibold' 
-              : 'hover:text-slate-200 hover:bg-slate-900'
-          }`}
-        >
-          <Layers className="w-3.5 h-3.5 text-emerald-400" />
-          <span>Environment & Build</span>
-        </button>
-
-        <button
-          onClick={() => setActiveView('providers')}
-          className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-colors ${
-            activeView === 'providers' 
-              ? 'bg-slate-800/80 text-white font-semibold' 
-              : 'hover:text-slate-200 hover:bg-slate-900'
-          }`}
-        >
-          <Cloud className="w-3.5 h-3.5 text-sky-400" />
-          <span>Provider Access</span>
-        </button>
-
-        <button
-          onClick={() => setActiveView('verification')}
-          className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-colors ${
-            activeView === 'verification' 
-              ? 'bg-slate-800/80 text-white font-semibold' 
-              : 'hover:text-slate-200 hover:bg-slate-900'
-          }`}
-        >
-          <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-          <span>Verification & Chaos</span>
-        </button>
-
-        <button
-          onClick={() => setActiveView('spec')}
-          className={`px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-colors ${
-            activeView === 'spec' 
-              ? 'bg-slate-800/80 text-white font-semibold' 
-              : 'hover:text-slate-200 hover:bg-slate-900'
-          }`}
-        >
-          <Terminal className="w-3.5 h-3.5 text-purple-400" />
-          <span>Architecture Spec</span>
-        </button>
-      </nav>
-
-      {/* Zone 3: 1-2 primary actions and status badge */}
-      <div className="flex items-center gap-3 shrink-0">
-        {/* Live readiness badge */}
+      {/* Right: Status, Launch CTA & Layout Controls */}
+      <div className="flex items-center gap-2 shrink-0">
+        {/* Status chip: quiet, single-tone */}
         <div 
           onClick={() => setActiveView('workspace')}
-          className={`cursor-pointer px-2.5 py-1 rounded-md text-xs font-mono flex items-center gap-2 border transition-all ${
-            readinessReady
-              ? 'bg-emerald-950/60 border-emerald-600/40 text-emerald-300'
-              : isLaunching
-              ? 'bg-cyan-950/60 border-cyan-600/40 text-cyan-300 animate-pulse'
-              : 'bg-slate-900 border-slate-800 text-slate-400'
-          }`}
+          className="h-[22px] px-2 rounded-sm bg-[#1a1a1a] border border-[#2b2b2b] flex items-center gap-1.5 text-[11px] font-mono text-[#a0a0a0] cursor-pointer hover:border-[#383838] transition-colors"
+          title="Click to view workspace readiness"
         >
-          <span className={`w-2 h-2 rounded-full ${
-            readinessReady 
-              ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' 
-              : isLaunching 
-              ? 'bg-cyan-400' 
-              : 'bg-amber-400'
+          <span className={`w-1.5 h-1.5 rounded-full ${
+            readinessReady ? 'bg-[#4ec9b0]' : isLaunching ? 'bg-[#0078d4] animate-pulse' : 'bg-[#cca700]'
           }`} />
-          <span className="whitespace-nowrap font-medium">
-            {readinessReady ? (
-              `${lease?.provider.name || 'GMI Cloud'} · ${lease?.capabilities.gpuModel || 'H200'} (READY)`
-            ) : isLaunching ? (
-              'VERIFYING ALL READY GATE...'
-            ) : (
-              'STANDBY · CONFIGURE'
-            )}
+          <span className="truncate">
+            {readinessReady 
+              ? `${lease?.provider.name || 'GMI'} · ${lease?.capabilities.gpuModel || 'H200'} (Ready)`
+              : isLaunching 
+              ? 'Verifying Gate...' 
+              : 'Standby'}
           </span>
         </div>
 
-        {/* Launch button */}
+        {/* Primary Action Button (Flat fill, muted blue accent) */}
         <button
           onClick={onLaunchClick}
           disabled={isLaunching}
-          className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-2 transition-all shadow-sm ${
+          className={`h-[22px] px-2.5 rounded-sm text-[11px] font-medium flex items-center gap-1.5 transition-colors ${
             isLaunching
-              ? 'bg-slate-800 text-slate-400 cursor-not-allowed'
+              ? 'bg-[#252525] text-[#6e6e6e] cursor-not-allowed'
               : readinessReady
-              ? 'bg-slate-800 hover:bg-slate-700 text-slate-200'
-              : 'bg-cyan-600 hover:bg-cyan-500 shadow-cyan-900/30'
+              ? 'bg-[#242424] hover:bg-[#2e2e2e] text-[#cccccc] border border-[#333333]'
+              : 'bg-[#0078d4] hover:bg-[#006bbd] text-white'
           }`}
         >
           {isLaunching ? (
             <>
-              <RotateCw className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+              <RotateCw className="w-3 h-3 animate-spin text-[#8c8c8c]" />
               <span>Verifying...</span>
             </>
           ) : readinessReady ? (
             <>
-              <RotateCw className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Re-Test Ready</span>
+              <RotateCw className="w-3 h-3 text-[#8c8c8c]" />
+              <span>Re-Test</span>
             </>
           ) : (
             <>
-              <Play className="w-3.5 h-3.5 fill-current" />
-              <span>Launch GPU Workspace</span>
+              <Play className="w-3 h-3 fill-current" />
+              <span>Launch</span>
             </>
           )}
         </button>
 
-        {/* User avatar */}
-        <div className="w-8 h-8 rounded-full border border-slate-700 overflow-hidden bg-slate-800 shrink-0">
-          <img 
-            src={avatarUrl} 
-            alt="Engineer Avatar" 
-            className="w-full h-full object-cover"
-            referrerPolicy="no-referrer"
-          />
+        {/* Layout Toggles */}
+        <div className="flex items-center border-l border-[#282828] pl-2 gap-0.5 text-[#6e6e6e]">
+          <button
+            onClick={onToggleSidebar}
+            className={`p-1 hover:text-[#cccccc] rounded-sm transition-colors ${showSidebar ? 'text-[#a0a0a0]' : 'text-[#4d4d4d]'}`}
+            title="Toggle Primary Sidebar (Ctrl+B)"
+          >
+            <PanelLeft className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={onToggleBottomPanel}
+            className={`p-1 hover:text-[#cccccc] rounded-sm transition-colors ${showBottomPanel ? 'text-[#a0a0a0]' : 'text-[#4d4d4d]'}`}
+            title="Toggle Bottom Terminal (Ctrl+`)"
+          >
+            <PanelBottom className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={onToggleInspector}
+            className={`p-1 hover:text-[#cccccc] rounded-sm transition-colors ${showInspector ? 'text-[#a0a0a0]' : 'text-[#4d4d4d]'}`}
+            title="Toggle Right Inspector"
+          >
+            <PanelRight className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
     </header>

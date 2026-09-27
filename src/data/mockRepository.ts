@@ -4,9 +4,9 @@ export const initialNotebookCells: NotebookCell[] = [
   {
     id: 'cell-1',
     cellType: 'markdown',
-    source: `# 🚀 Gemma Fine-Tuning & CUDA Tensor Verification
-This notebook runs inside the **Universal Execution Core** on leased GPU compute.
-Both notebooks and Python files use the isolated project environment managed by **uv** and verified against the **Truthful All-Ready Gate**.`,
+    source: `## Gemma Fine-Tuning & CUDA Tensor Verification
+This notebook executes inside the Universal Execution Core on leased GPU compute.
+Both notebooks and Python files use the isolated project environment managed by uv and verified against the Truthful All-Ready Gate.`,
     executionCount: null,
     status: 'idle',
   },
@@ -17,7 +17,7 @@ Both notebooks and Python files use the isolated project environment managed by 
 import os
 import time
 
-# Verify Python package structure without mutating sys.path hackily
+# Verify Python package structure without mutating sys.path
 from project.model import GemmaAttentionBlock, GemmaConfig
 from project.data import SyntheticTokenDataset
 from project.train import run_tensor_benchmark
@@ -50,16 +50,16 @@ compute_capability = (9, 0)
 vram_allocated_gb = 4.2
 vram_total_gb = 141.0
 
-print(f"✓ CUDA Device 0: {device_name}")
-print(f"✓ Architecture: Hopper sm_{compute_capability[0]}{compute_capability[1]}")
-print(f"✓ VRAM Free: {vram_total_gb - vram_allocated_gb:.1f} GB / {vram_total_gb:.1f} GB")`,
+print(f"CUDA Device 0: {device_name}")
+print(f"Architecture: Hopper sm_{compute_capability[0]}{compute_capability[1]}")
+print(f"VRAM Free: {vram_total_gb - vram_allocated_gb:.1f} GB / {vram_total_gb:.1f} GB")`,
     outputs: [
       {
         outputType: 'stream',
         text: [
-          '✓ CUDA Device 0: NVIDIA H200 141GB SXM\n',
-          '✓ Architecture: Hopper sm_90\n',
-          '✓ VRAM Free: 136.8 GB / 141.0 GB\n',
+          'CUDA Device 0: NVIDIA H200 141GB SXM\n',
+          'Architecture: Hopper sm_90\n',
+          'VRAM Free: 136.8 GB / 141.0 GB\n',
         ],
       },
     ],
