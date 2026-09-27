@@ -1,0 +1,6 @@
+{
+  "name": "Execution Fabric",
+  "description": "Production SOTA cloud IDE architecture with decoupled Universal Execution Core and Multi-Cloud Compute Fabric for verified GPU notebooks and workloads.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
