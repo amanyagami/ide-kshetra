@@ -265,6 +265,8 @@ export interface UserProfile {
   avatarUrl: string;
   role: 'owner' | 'ml_engineer' | 'viewer';
   organization: string;
+  permissions?: string[];
+  wifSubject?: string;
 }
 
 export interface UserSession {
@@ -272,6 +274,16 @@ export interface UserSession {
   user: UserProfile | null;
   sessionToken?: string;
   signedInAt?: string;
+  tokenClaims?: {
+    iss: string;
+    sub: string;
+    aud: string;
+    exp: number;
+    roles: string[];
+    scopes: string[];
+    wifAudience: string;
+    gcpProject: string;
+  };
   connections: {
     github: {
       connected: boolean;
@@ -285,6 +297,7 @@ export interface UserSession {
       activeProjectId?: string;
       discoveredProjectsCount: number;
       discoveredVmsCount: number;
+      runningVmsCount?: number;
     };
   };
 }
@@ -324,6 +337,20 @@ export interface GcpVmInstance {
   agentVersion?: string;
   uptimeHours: number;
   costPerHour: number;
+  telemetry?: {
+    gpuUtilPercent: number;
+    memoryUtilPercent: number;
+    temperatureC: number;
+    powerWatts: number;
+    vramUsedGB: number;
+    activeProcesses: {
+      pid: number;
+      user: string;
+      command: string;
+      gpuMemory: string;
+      cpuPercent: number;
+    }[];
+  };
   preflight?: {
     checkedAt: string;
     passed: boolean;

@@ -14,11 +14,11 @@ export class CloudService {
     return data.session;
   }
 
-  async login(email?: string, name?: string, organization?: string): Promise<UserSession> {
+  async login(email?: string, name?: string, organization?: string, role?: string, targetProjectId?: string): Promise<UserSession> {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, name, organization }),
+      body: JSON.stringify({ email, name, organization, role, targetProjectId }),
     });
     if (!res.ok) throw new Error('Login failed');
     const data = await res.json();
@@ -43,6 +43,49 @@ export class CloudService {
     if (!res.ok) throw new Error('Failed to fetch GCP VMs');
     const data = await res.json();
     return data.vms;
+  }
+
+  async createVm(payload: {
+    name: string;
+    projectId?: string;
+    zone?: string;
+    machineType?: string;
+    gpuModel?: string;
+    gpuCount?: number;
+    vramTotalGB?: number;
+    cpuCores?: number;
+    ramGB?: number;
+    bootDiskGB?: number;
+    costPerHour?: number;
+  }): Promise<GcpVmInstance> {
+    const res = await fetch('/api/gcp/vms/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Failed to create VM' }));
+      throw new Error(err.message || 'Failed to create VM');
+    }
+    const data = await res.json();
+    return data.vm;
+  }
+
+  async getVmTelemetry(projectId: string, zone: string, vmName: string): Promise<any> {
+    const res = await fetch(`/api/gcp/vms/${projectId}/${zone}/${vmName}/telemetry`);
+    if (!res.ok) throw new Error('Failed to fetch VM telemetry');
+    const data = await res.json();
+    return data.telemetry;
+  }
+
+  async executeVmCommand(projectId: string, zone: string, vmName: string, command: string): Promise<{ stdout: string; stderr?: string; exitCode: number }> {
+    const res = await fetch(`/api/gcp/vms/${projectId}/${zone}/${vmName}/exec`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command }),
+    });
+    if (!res.ok) throw new Error('Failed to execute command on VM');
+    return await res.json();
   }
 
   async runVmPreflight(projectId: string, zone: string, vmName: string): Promise<GcpVmInstance['preflight']> {

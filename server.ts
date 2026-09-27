@@ -15,30 +15,25 @@ app.use(express.json());
 
 // In-Memory Database for Production Demonstration
 let currentSession: UserSession = {
-  isAuthenticated: true,
-  user: {
-    id: 'usr_noah_9941a',
-    email: 'aman@noahlabs.ai',
-    name: 'Aman (NoahLabs)',
-    avatarUrl: '/src/assets/images/avatar_engineer_1790479540008.jpg',
-    role: 'owner',
-    organization: 'noahlabs.ai',
-  },
-  sessionToken: 'sess_kshetra_78a1bc9204e',
-  signedInAt: new Date().toISOString(),
+  isAuthenticated: false, // Default unauthenticated so user can test login & authorization themselves!
+  user: null,
+  sessionToken: undefined,
+  signedInAt: undefined,
+  tokenClaims: undefined,
   connections: {
     github: {
-      connected: true,
-      account: 'amanyagami',
-      installationId: 'gh-inst-8849201',
-      authorizedReposCount: 3,
+      connected: false,
+      account: undefined,
+      installationId: undefined,
+      authorizedReposCount: 0,
     },
     gcp: {
-      connected: true,
-      userEmail: 'aman@noahlabs.ai',
+      connected: false,
+      userEmail: undefined,
       activeProjectId: 'noahlabs-ai-prod',
       discoveredProjectsCount: 3,
       discoveredVmsCount: 6,
+      runningVmsCount: 4,
     },
   },
 };
@@ -346,8 +341,45 @@ app.get('/api/session', (_req: Request, res: Response) => {
 });
 
 app.post('/api/auth/login', (req: Request, res: Response) => {
-  const { email, name, organization } = req.body;
-  const userEmail = email || 'aman@noahlabs.ai';
+  const { email, name, organization, role, targetProjectId } = req.body;
+  const userEmail = email ? email.trim() : 'aman@noahlabs.ai';
+  const userRole: 'owner' | 'ml_engineer' | 'viewer' = role || 'owner';
+  const targetProject = targetProjectId || 'noahlabs-ai-prod';
+
+  const rolePermissions: Record<string, string[]> = {
+    owner: [
+      'compute.*',
+      'compute.instances.create',
+      'compute.instances.delete',
+      'compute.instances.start',
+      'compute.instances.stop',
+      'compute.instances.reset',
+      'iap.tunnelInstances.accessViaIAP',
+      'iam.serviceAccounts.actAs',
+      'workspace.*',
+      'cluster.admin',
+      'storage.objects.*',
+    ],
+    ml_engineer: [
+      'compute.instances.get',
+      'compute.instances.list',
+      'compute.instances.start',
+      'compute.instances.stop',
+      'compute.instances.reset',
+      'iap.tunnelInstances.accessViaIAP',
+      'workspace.bind',
+      'notebook.execute',
+      'storage.objects.get',
+    ],
+    viewer: [
+      'compute.instances.get',
+      'compute.instances.list',
+      'monitoring.timeSeries.list',
+    ],
+  };
+
+  const permissions = rolePermissions[userRole] || rolePermissions.ml_engineer;
+  const runningCount = gcpVms.filter(v => v.status === 'RUNNING').length;
 
   currentSession = {
     isAuthenticated: true,
@@ -356,11 +388,28 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
       email: userEmail,
       name: name || userEmail.split('@')[0],
       avatarUrl: '/src/assets/images/avatar_engineer_1790479540008.jpg',
-      role: 'owner',
+      role: userRole,
       organization: organization || 'noahlabs.ai',
+      permissions,
+      wifSubject: `principal://iam.googleapis.com/projects/459758149151/locations/global/workloadIdentityPools/kshetra-pool/subject/${userEmail}`,
     },
-    sessionToken: `sess_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 8)}`,
+    sessionToken: `jwt_wif_${Buffer.from(JSON.stringify({ sub: userEmail, role: userRole, iat: Date.now() })).toString('base64url')}`,
     signedInAt: new Date().toISOString(),
+    tokenClaims: {
+      iss: 'https://auth.kshetra.internal',
+      sub: userEmail,
+      aud: 'https://iam.googleapis.com/projects/459758149151/locations/global/workloadIdentityPools/kshetra-pool/providers/kshetra-oidc',
+      exp: Math.floor(Date.now() / 1000) + 86400,
+      roles: [userRole],
+      scopes: [
+        'https://www.googleapis.com/auth/compute',
+        'https://www.googleapis.com/auth/cloud-platform',
+        'https://www.googleapis.com/auth/devstorage.read_write',
+        'github:repo:read',
+      ],
+      wifAudience: '//iam.googleapis.com/projects/459758149151/locations/global/workloadIdentityPools/kshetra-pool',
+      gcpProject: targetProject,
+    },
     connections: {
       github: {
         connected: true,
@@ -371,16 +420,17 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
       gcp: {
         connected: true,
         userEmail: userEmail,
-        activeProjectId: 'noahlabs-ai-prod',
+        activeProjectId: targetProject,
         discoveredProjectsCount: gcpProjects.length,
         discoveredVmsCount: gcpVms.length,
+        runningVmsCount: runningCount,
       },
     },
   };
 
   res.json({
     status: 'ok',
-    message: `Signed in successfully as ${userEmail}`,
+    message: `Signed in & authorized successfully as ${userEmail} (${userRole.toUpperCase()})`,
     session: currentSession,
   });
 });
@@ -546,20 +596,244 @@ app.post('/api/gcp/vms/:projectId/:zone/:name/action', (req: Request, res: Respo
   if (action === 'start') {
     vm.status = 'RUNNING';
     vm.agentStatus = 'CONNECTED';
+    vm.uptimeHours = 0.1;
   } else if (action === 'stop') {
     vm.status = 'TERMINATED';
     vm.agentStatus = 'OFFLINE';
   } else if (action === 'reset') {
     vm.status = 'RUNNING';
     vm.agentStatus = 'CONNECTED';
+    vm.uptimeHours = 0.1;
   }
+
+  const runningCount = gcpVms.filter(v => v.status === 'RUNNING').length;
+  currentSession.connections.gcp.runningVmsCount = runningCount;
 
   res.json({
     status: 'ok',
     action,
     vmName: name,
     newStatus: vm.status,
+    runningCount,
     vm,
+  });
+});
+
+// Provision / Create New Compute Engine VM Instance
+app.post('/api/gcp/vms/create', (req: Request, res: Response) => {
+  const { 
+    name, 
+    projectId, 
+    zone, 
+    machineType, 
+    gpuModel, 
+    gpuCount, 
+    vramTotalGB, 
+    cpuCores, 
+    ramGB, 
+    bootDiskGB, 
+    costPerHour 
+  } = req.body;
+
+  const vmName = name ? name.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-') : `gcp-gpu-custom-${Date.now().toString(36)}`;
+  const targetProject = projectId || currentSession.connections.gcp.activeProjectId || 'noahlabs-ai-prod';
+  const targetZone = zone || 'us-central1-a';
+
+  // Check duplicate
+  const exists = gcpVms.some(v => v.name === vmName && v.projectId === targetProject);
+  if (exists) {
+    return res.status(400).json({ status: 'error', message: `VM with name '${vmName}' already exists in project '${targetProject}'` });
+  }
+
+  const newVm: GcpVmInstance = {
+    id: `gcp-vm-${Date.now().toString(36)}`,
+    name: vmName,
+    projectId: targetProject,
+    zone: targetZone,
+    status: 'RUNNING',
+    machineType: machineType || 'a3-highgpu-8g',
+    gpu: gpuModel ? {
+      model: gpuModel,
+      count: gpuCount || 1,
+      vramTotalGB: vramTotalGB || 80,
+    } : {
+      model: 'NVIDIA H100 80GB SXM5',
+      count: 1,
+      vramTotalGB: 80,
+    },
+    cpuCores: cpuCores || 26,
+    ramGB: ramGB || 234,
+    bootDiskGB: bootDiskGB || 500,
+    internalIp: `10.128.0.${Math.floor(Math.random() * 180 + 20)}`,
+    externalIp: null,
+    isPrivateOnly: true,
+    osImage: 'cml-gpu-debian-11-py310-cuda12',
+    iapSupported: true,
+    osLoginEnabled: true,
+    agentStatus: 'CONNECTED',
+    agentVersion: 'v2.4.1',
+    uptimeHours: 0.1,
+    costPerHour: costPerHour || 3.85,
+    preflight: {
+      checkedAt: new Date().toISOString(),
+      passed: true,
+      iapTunnelOk: true,
+      osLoginOk: true,
+      serviceAccountScopesOk: true,
+      nvidiaDriverOk: true,
+      agentOk: true,
+      messages: [
+        `[PASS] IAP Tunnel: TCP tunnel verified on private interface without public IP.`,
+        `[PASS] OS Login: Identity mapped to ${currentSession.user?.email || 'aman@noahlabs.ai'}.`,
+        `[PASS] NVML Driver 550.54.14 active with CUDA 12.4.`,
+        `[PASS] Kshetra Agent online via mTLS on port 443.`,
+      ],
+    },
+  };
+
+  gcpVms.unshift(newVm);
+  currentSession.connections.gcp.discoveredVmsCount = gcpVms.length;
+  currentSession.connections.gcp.runningVmsCount = gcpVms.filter(v => v.status === 'RUNNING').length;
+
+  res.json({
+    status: 'ok',
+    message: `VM ${vmName} successfully provisioned and booted in ${targetZone}`,
+    vm: newVm,
+    runningVmsCount: currentSession.connections.gcp.runningVmsCount,
+  });
+});
+
+// Live Telemetry Stream for VM
+app.get('/api/gcp/vms/:projectId/:zone/:name/telemetry', (req: Request, res: Response) => {
+  const { projectId, name } = req.params;
+  const vm = gcpVms.find(v => v.name === name && v.projectId === projectId);
+
+  if (!vm) {
+    return res.status(404).json({ status: 'error', message: `VM ${name} not found` });
+  }
+
+  if (vm.status !== 'RUNNING') {
+    return res.json({
+      status: 'ok',
+      vmStatus: vm.status,
+      telemetry: {
+        gpuUtilPercent: 0,
+        memoryUtilPercent: 0,
+        temperatureC: 22,
+        powerWatts: 0,
+        vramUsedGB: 0,
+        activeProcesses: [],
+      },
+    });
+  }
+
+  const baseUtil = vm.gpu ? (vm.gpu.count >= 8 ? 68 : 34) : 18;
+  const jitter = Math.floor(Math.random() * 8) - 4;
+  const gpuUtil = Math.max(10, Math.min(98, baseUtil + jitter));
+  const vramMax = vm.gpu ? vm.gpu.vramTotalGB : 64;
+  const vramUsed = parseFloat(((gpuUtil / 100) * (vramMax * 0.75)).toFixed(1));
+
+  const telemetry = {
+    gpuUtilPercent: gpuUtil,
+    memoryUtilPercent: Math.max(12, Math.min(85, Math.round(gpuUtil * 0.6))),
+    temperatureC: 42 + Math.floor(gpuUtil * 0.25),
+    powerWatts: vm.gpu ? Math.round(180 + gpuUtil * (vm.gpu.count * 4.2)) : 65,
+    vramUsedGB: vramUsed,
+    activeProcesses: [
+      {
+        pid: 3891,
+        user: currentSession.user?.email.split('@')[0] || 'aman',
+        command: 'python3 -m torch.distributed.run --nproc_per_node=8 train.py',
+        gpuMemory: `${(vramUsed * 0.85).toFixed(1)} GB`,
+        cpuPercent: 88.4,
+      },
+      {
+        pid: 4012,
+        user: 'root',
+        command: 'fabric-agent (daemon v2.4.1)',
+        gpuMemory: '142 MB',
+        cpuPercent: 1.1,
+      },
+      {
+        pid: 4150,
+        user: 'systemd-journald',
+        command: '/lib/systemd/systemd-journald',
+        gpuMemory: '0 MB',
+        cpuPercent: 0.4,
+      },
+    ],
+  };
+
+  res.json({
+    status: 'ok',
+    vmName: name,
+    vmStatus: vm.status,
+    telemetry,
+  });
+});
+
+// Execute Command via IAP / Agent on VM
+app.post('/api/gcp/vms/:projectId/:zone/:name/exec', (req: Request, res: Response) => {
+  const { projectId, name } = req.params;
+  const { command } = req.body;
+  const vm = gcpVms.find(v => v.name === name && v.projectId === projectId);
+
+  if (!vm) {
+    return res.status(404).json({ status: 'error', message: `VM ${name} not found` });
+  }
+
+  if (vm.status !== 'RUNNING') {
+    return res.status(400).json({ status: 'error', message: `Cannot execute command: VM ${name} is ${vm.status}` });
+  }
+
+  const cmd = (command || '').trim();
+  let stdout = '';
+  let exitCode = 0;
+
+  if (cmd === 'nvidia-smi') {
+    const gpuName = vm.gpu ? vm.gpu.model : 'No GPU';
+    const totalMem = vm.gpu ? vm.gpu.vramTotalGB * 1024 : 0;
+    const usedMem = Math.round(totalMem * 0.28);
+    stdout = `+-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 550.54.14              Driver Version: 550.54.14      CUDA Version: 12.4     |
+|-----------------------------------------+------------------------+----------------------+
+| GPU  Name                  Persistence-M| Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  ${gpuName.padEnd(25)} On   | 00000000:00:04.0   Off |                    0 |
+| N/A   46C    P0             264W / 700W |   ${usedMem}MiB / ${totalMem}MiB |    42%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI        PID   Type   Process name                              GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|    0   N/A  N/A      3891      C   python3                                      ${usedMem}MiB |
++-----------------------------------------------------------------------------------------+`;
+  } else if (cmd === 'uname -a') {
+    stdout = `Linux ${vm.name} 6.5.0-35-generic #35~22.04.1-Ubuntu SMP PREEMPT_DYNAMIC Fri Sep 20 18:24:12 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux`;
+  } else if (cmd.includes('torch')) {
+    stdout = `CUDA Available: True\nDevice Count: ${vm.gpu?.count || 1}\nDevice Name: ${vm.gpu?.model || 'CUDA Device'}\nCUDA Arch sm_90 capability confirmed.`;
+  } else if (cmd === 'uptime') {
+    stdout = ` 20:24:50 up ${Math.round(vm.uptimeHours * 60)} min,  1 user,  load average: 1.42, 1.18, 0.95`;
+  } else if (cmd.includes('gcloud compute instances')) {
+    stdout = `NAME                   ZONE           MACHINE_TYPE    PREEMPTIBLE  INTERNAL_IP  EXTERNAL_IP  STATUS\n` +
+      gcpVms.filter(v => v.projectId === vm.projectId).map(v => `${v.name.padEnd(22)} ${v.zone.padEnd(14)} ${v.machineType.padEnd(15)} -            ${v.internalIp.padEnd(12)} -            ${v.status}`).join('\n');
+  } else if (cmd === 'df -h') {
+    stdout = `Filesystem      Size  Used Avail Use% Mounted on
+/dev/root       490G   48G  422G  11% /
+tmpfs           188G     0  188G   0% /dev/shm
+/dev/nvme0n1    1.9T  210G  1.7T  11% /mnt/fast-scratch`;
+  } else {
+    stdout = `[${vm.name}:~]$ ${cmd}\nCommand executed successfully via IAP forwarding tunnel. Exit code: 0`;
+  }
+
+  res.json({
+    status: 'ok',
+    command: cmd,
+    stdout,
+    exitCode,
   });
 });
 
