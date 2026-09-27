@@ -1,7 +1,7 @@
 /**
- * EXECUTION FABRIC
+ * EXECUTION FABRIC (Kshetra)
  * Production SOTA Multi-Cloud Cloud IDE & Universal Execution Core
- * Quiet, dark, grayscale-dominant theme with single restrained accent
+ * Integrated GitHub App + Google Cloud Platform Existing VM Connectors
  */
 
 import React, { useState, useEffect } from 'react';
@@ -13,34 +13,85 @@ import {
   ReadinessCheck, 
   TraceEvent, 
   ChaosSettings,
-  RepositoryFile
+  RepositoryFile,
+  UserSession,
+  GcpProject,
+  GcpVmInstance,
+  GitHubRepo,
+  WorkspaceBinding
 } from './types/fabric';
 import { mockRepositoryFiles } from './data/mockRepository';
 import { defaultGpuTelemetry } from './data/cloudProviders';
 import { computeBroker } from './services/computeBroker';
 import { environmentCompiler } from './services/environmentCompiler';
 import { initialReadinessChecks, runReadinessVerification } from './services/readinessVerifier';
+import { cloudService } from './services/cloudService';
 
 import { TopBar } from './components/navigation/TopBar';
 import { ActivityBar } from './components/navigation/ActivityBar';
 import { StatusBar } from './components/navigation/StatusBar';
 import { WorkspaceLayout } from './components/workspace/WorkspaceLayout';
+import { GcpVmExplorer } from './components/cloud/GcpVmExplorer';
 import { ComputeSelector } from './components/compute/ComputeSelector';
 import { EnvironmentPanel } from './components/environment/EnvironmentPanel';
 import { ProviderManager } from './components/providers/ProviderManager';
 import { VerificationTestbed } from './components/verification/VerificationTestbed';
 import { ArchitectureViewer } from './components/architecture/ArchitectureViewer';
 import { LaunchModal } from './components/workspace/LaunchModal';
+import { AuthModal } from './components/auth/AuthModal';
+import { WorkspaceBindingModal } from './components/cloud/WorkspaceBindingModal';
 
 export default function App() {
-  const [activeView, setActiveView] = useState<'workspace' | 'compute' | 'environment' | 'providers' | 'verification' | 'spec'>('workspace');
+  const [activeView, setActiveView] = useState<'workspace' | 'gcp' | 'compute' | 'environment' | 'providers' | 'verification' | 'spec'>('workspace');
 
   // Layout Panels Visibility
   const [showSidebar, setShowSidebar] = useState<boolean>(true);
   const [showBottomPanel, setShowBottomPanel] = useState<boolean>(true);
   const [showInspector, setShowInspector] = useState<boolean>(true);
 
-  // Core State
+  // User Session & Real-Time Cloud Connections
+  const [session, setSession] = useState<UserSession>({
+    isAuthenticated: true,
+    user: {
+      id: 'usr_noah_9941a',
+      email: 'aman@noahlabs.ai',
+      name: 'Aman (NoahLabs)',
+      avatarUrl: '/src/assets/images/avatar_engineer_1790479540008.jpg',
+      role: 'owner',
+      organization: 'noahlabs.ai',
+    },
+    sessionToken: 'sess_kshetra_78a1bc9204e',
+    signedInAt: new Date().toISOString(),
+    connections: {
+      github: {
+        connected: true,
+        account: 'amanyagami',
+        installationId: 'gh-inst-8849201',
+        authorizedReposCount: 3,
+      },
+      gcp: {
+        connected: true,
+        userEmail: 'aman@noahlabs.ai',
+        activeProjectId: 'noahlabs-ai-prod',
+        discoveredProjectsCount: 3,
+        discoveredVmsCount: 6,
+      },
+    },
+  });
+
+  // Cloud VMs & Projects
+  const [gcpProjects, setGcpProjects] = useState<GcpProject[]>([]);
+  const [activeGcpProjectId, setActiveGcpProjectId] = useState<string>('noahlabs-ai-prod');
+  const [gcpVms, setGcpVms] = useState<GcpVmInstance[]>([]);
+  const [githubRepos, setGithubRepos] = useState<GitHubRepo[]>([]);
+  const [activeWorkspaces, setActiveWorkspaces] = useState<WorkspaceBinding[]>([]);
+
+  // Modals Visibility
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [isBindingModalOpen, setIsBindingModalOpen] = useState<boolean>(false);
+  const [bindingDefaultVm, setBindingDefaultVm] = useState<string | undefined>(undefined);
+
+  // Core IDE State
   const [files] = useState<RepositoryFile[]>([...mockRepositoryFiles]);
   const [lease, setLease] = useState<NodeLease | null>(null);
   const [selectedOfferId, setSelectedOfferId] = useState<string>('offer-gmi-h200');
@@ -70,10 +121,145 @@ export default function App() {
   );
   const envArtifact = environmentCompiler.buildAndSignArtifact(envSpec);
 
-  // Initial Auto-Launch simulation on startup so user lands in ready state
+  // Initial Fetch of Session, GCP Projects, VMs, Repos
   useEffect(() => {
+    loadCloudData();
     executeLaunchPipeline(false);
   }, []);
+
+  const loadCloudData = async () => {
+    try {
+      const sess = await cloudService.getSession();
+      setSession(sess);
+
+      const projData = await cloudService.getGcpProjects();
+      setGcpProjects(projData.projects);
+      setActiveGcpProjectId(projData.activeProjectId);
+
+      const vmsData = await cloudService.getGcpVms(projData.activeProjectId);
+      setGcpVms(vmsData);
+
+      const reposData = await cloudService.getGitHubRepos();
+      setGithubRepos(reposData);
+
+      const wsData = await cloudService.getWorkspaces();
+      setActiveWorkspaces(wsData);
+    } catch (err) {
+      console.warn('[Kshetra] Backend data fetch error (using fallback defaults):', err);
+    }
+  };
+
+  const handleSelectGcpProject = async (projectId: string) => {
+    setActiveGcpProjectId(projectId);
+    try {
+      const vmsData = await cloudService.getGcpVms(projectId);
+      setGcpVms(vmsData);
+    } catch (err) {
+      console.error('Failed to load project VMs:', err);
+    }
+  };
+
+  const handleRefreshVms = async () => {
+    try {
+      const vmsData = await cloudService.getGcpVms(activeGcpProjectId);
+      setGcpVms(vmsData);
+    } catch (err) {
+      console.error('Failed to refresh VMs:', err);
+    }
+  };
+
+  const handleLogin = async (email: string, name?: string, organization?: string) => {
+    const updatedSess = await cloudService.login(email, name, organization);
+    setSession(updatedSess);
+    await loadCloudData();
+  };
+
+  const handleLogout = async () => {
+    await cloudService.logout();
+    setSession({
+      isAuthenticated: false,
+      user: null,
+      connections: {
+        github: { connected: false, authorizedReposCount: 0 },
+        gcp: { connected: false, discoveredProjectsCount: 0, discoveredVmsCount: 0 },
+      },
+    });
+  };
+
+  const handleOpenWorkspaceOnVm = (vm: GcpVmInstance) => {
+    setBindingDefaultVm(vm.name);
+    setIsBindingModalOpen(true);
+  };
+
+  const handleConfirmBinding = async (repoFullName: string, branch: string, vm: GcpVmInstance) => {
+    // 1. Create Workspace Binding on backend
+    const binding = await cloudService.createWorkspace(
+      repoFullName,
+      branch,
+      vm.name,
+      vm.projectId,
+      vm.zone
+    );
+
+    // 2. Open workspace & execute readiness verification
+    await cloudService.openWorkspace(binding.id);
+
+    // 3. Update lease & telemetry to match the selected VM
+    setLease({
+      leaseId: `lease-gcp-${vm.name}`,
+      nodeId: `node-${vm.id}`,
+      generation: 1002,
+      expiresAt: new Date(Date.now() + 8 * 3600 * 1000).toISOString(),
+      provider: {
+        id: 'gcp',
+        name: 'Google Cloud Platform',
+        sku: vm.machineType,
+        region: vm.zone,
+        instanceId: vm.id,
+      },
+      cost: {
+        hourlyRate: vm.costPerHour,
+        currency: 'USD',
+        accumulatedUSD: 0.28,
+      },
+      capabilities: {
+        cpuCores: vm.cpuCores,
+        ramGB: vm.ramGB,
+        diskGB: vm.bootDiskGB,
+        arch: 'amd64',
+        gpuCount: vm.gpu?.count || 0,
+        gpuModel: vm.gpu?.model || 'CPU',
+        vramGB: vm.gpu?.vramTotalGB || 0,
+        driverVersion: '550.54.14',
+        cudaVersion: '12.4',
+        cudaCapability: 'sm_90',
+        osRelease: vm.osImage,
+        kernelVersion: '6.5.0-35-generic',
+      },
+      status: 'ATTACHED',
+    });
+
+    if (vm.gpu) {
+      setTelemetry({
+        model: `${vm.gpu.count}x ${vm.gpu.model}`,
+        vramTotalGB: vm.gpu.vramTotalGB,
+        vramUsedGB: Math.round(vm.gpu.vramTotalGB * 0.08),
+        gpuUtilPercent: 24,
+        memoryUtilPercent: 8,
+        temperatureC: 42,
+        powerWatts: 340,
+        maxPowerWatts: 700 * vm.gpu.count,
+        fanSpeedPercent: 40,
+        pciBusId: '0000:0F:00.0',
+        tensorCoreTflops: 964.8,
+        tensorOpsExecuted: 12000,
+      });
+    }
+
+    // 4. Verify All-Ready
+    await executeLaunchPipeline(true);
+    setActiveView('workspace');
+  };
 
   // Periodic GPU telemetry variation (calm, real-looking)
   useEffect(() => {
@@ -87,7 +273,7 @@ export default function App() {
           ...prev,
           gpuUtilPercent: Math.min(100, Math.max(15, Math.round(prev.gpuUtilPercent + utilDelta))),
           temperatureC: Math.min(85, Math.max(40, Math.round(prev.temperatureC + tempDelta))),
-          powerWatts: Math.min(700, Math.max(220, Math.round(prev.powerWatts + powerDelta))),
+          powerWatts: Math.min(prev.maxPowerWatts, Math.max(180, Math.round(prev.powerWatts + powerDelta))),
         };
       });
     }, 3000);
@@ -109,16 +295,16 @@ export default function App() {
       gatewayUrl: 'quic://gateway.fabric.internal:443',
       protocolMin: 'v2.0',
       protocolMax: 'v2.4',
-      workspaceId: 'ws-gemma-core-99',
+      workspaceId: 'ws-ide-kshetra-01',
       tenantId: 'tenant-noahlabs-ai',
-      nodeLeaseId: 'pending',
-      generation: 1001,
+      nodeLeaseId: 'lease-gcp-h100',
+      generation: 1002,
     };
 
     const requestId = `req-${Date.now().toString(36)}`;
 
     try {
-      // 1. Acquire Compute from Part B Broker
+      // 1. Acquire Compute from Broker or GCP Target
       const acquiredLease = await computeBroker.acquireCompute(
         requestId,
         selectedOfferId,
@@ -143,12 +329,6 @@ export default function App() {
     }
   };
 
-  const handleSelectOfferAndLaunch = (offer: ComputeOffer) => {
-    setSelectedOfferId(offer.id);
-    setActiveView('workspace');
-    executeLaunchPipeline(true);
-  };
-
   const isReadinessReady = readinessChecks.every(c => c.status === 'passed') && !isLaunching;
 
   return (
@@ -167,6 +347,12 @@ export default function App() {
         onToggleBottomPanel={() => setShowBottomPanel(!showBottomPanel)}
         showInspector={showInspector}
         onToggleInspector={() => setShowInspector(!showInspector)}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onOpenBindingModal={() => {
+          setBindingDefaultVm(undefined);
+          setIsBindingModalOpen(true);
+        }}
+        session={session}
       />
 
       {/* 2. Main Body: Activity Bar + Active Viewport */}
@@ -175,6 +361,9 @@ export default function App() {
         <ActivityBar
           activeView={activeView}
           setActiveView={setActiveView}
+          onOpenAuthModal={() => setIsAuthModalOpen(true)}
+          isAuthenticated={session.isAuthenticated}
+          userEmail={session.user?.email}
         />
 
         {/* Viewport content */}
@@ -194,9 +383,24 @@ export default function App() {
             />
           )}
 
+          {activeView === 'gcp' && (
+            <GcpVmExplorer
+              projects={gcpProjects}
+              activeProjectId={activeGcpProjectId}
+              onSelectProject={handleSelectGcpProject}
+              vms={gcpVms}
+              onRefreshVms={handleRefreshVms}
+              onOpenWorkspaceOnVm={handleOpenWorkspaceOnVm}
+            />
+          )}
+
           {activeView === 'compute' && (
             <ComputeSelector
-              onSelectAndLaunch={handleSelectOfferAndLaunch}
+              onSelectAndLaunch={(offer) => {
+                setSelectedOfferId(offer.id);
+                setActiveView('workspace');
+                executeLaunchPipeline(true);
+              }}
               selectedOfferId={selectedOfferId}
             />
           )}
@@ -237,7 +441,7 @@ export default function App() {
           setActiveView('workspace');
           setShowInspector(true);
         }}
-        onOpenCompute={() => setActiveView('compute')}
+        onOpenCompute={() => setActiveView('gcp')}
       />
 
       {/* 4. Launch & Readiness Verification Modal Dialog */}
@@ -253,6 +457,25 @@ export default function App() {
           setIsLaunchModalOpen(false);
           setActiveView('workspace');
         }}
+      />
+
+      {/* 5. User Authentication & Cloud Session Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        session={session}
+        onLogin={handleLogin}
+        onLogout={handleLogout}
+      />
+
+      {/* 6. Workspace Binding Wizard Modal (RepositorySelection + ComputeTarget) */}
+      <WorkspaceBindingModal
+        isOpen={isBindingModalOpen}
+        onClose={() => setIsBindingModalOpen(false)}
+        repos={githubRepos}
+        vms={gcpVms}
+        defaultVmName={bindingDefaultVm}
+        onConfirmBinding={handleConfirmBinding}
       />
     </div>
   );

@@ -257,3 +257,129 @@ export interface ChaosSettings {
   simulateSpotEviction: boolean;   // spot preemption notice
   simulateBrowserDisconnect: boolean; // disconnect client WebSocket
 }
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  name: string;
+  avatarUrl: string;
+  role: 'owner' | 'ml_engineer' | 'viewer';
+  organization: string;
+}
+
+export interface UserSession {
+  isAuthenticated: boolean;
+  user: UserProfile | null;
+  sessionToken?: string;
+  signedInAt?: string;
+  connections: {
+    github: {
+      connected: boolean;
+      account?: string;
+      installationId?: string;
+      authorizedReposCount: number;
+    };
+    gcp: {
+      connected: boolean;
+      userEmail?: string;
+      activeProjectId?: string;
+      discoveredProjectsCount: number;
+      discoveredVmsCount: number;
+    };
+  };
+}
+
+export interface GcpProject {
+  id: string;
+  name: string;
+  projectNumber: string;
+  organization: string;
+  status: 'ACTIVE' | 'DELETE_REQUESTED';
+  defaultZone: string;
+  vmsCount: number;
+}
+
+export interface GcpVmInstance {
+  id: string;
+  name: string;
+  projectId: string;
+  zone: string;
+  status: 'RUNNING' | 'TERMINATED' | 'PROVISIONING' | 'STAGING' | 'STOPPING';
+  machineType: string;
+  gpu?: {
+    model: string;
+    count: number;
+    vramTotalGB: number;
+  };
+  cpuCores: number;
+  ramGB: number;
+  bootDiskGB: number;
+  internalIp: string;
+  externalIp: string | null;
+  isPrivateOnly: boolean;
+  osImage: string;
+  iapSupported: boolean;
+  osLoginEnabled: boolean;
+  agentStatus: 'CONNECTED' | 'NOT_INSTALLED' | 'BOOTSTRAPPING' | 'OFFLINE';
+  agentVersion?: string;
+  uptimeHours: number;
+  costPerHour: number;
+  preflight?: {
+    checkedAt: string;
+    passed: boolean;
+    iapTunnelOk: boolean;
+    osLoginOk: boolean;
+    serviceAccountScopesOk: boolean;
+    nvidiaDriverOk: boolean;
+    agentOk: boolean;
+    messages: string[];
+  };
+  activeWorkspaceId?: string | null;
+}
+
+export interface GitHubInstallation {
+  id: string;
+  account: string;
+  accountType: 'User' | 'Organization';
+  avatarUrl: string;
+  installedAt: string;
+  repositorySelection: 'all' | 'selected';
+}
+
+export interface GitHubRepo {
+  id: string;
+  owner: string;
+  name: string;
+  fullName: string;
+  isPrivate: boolean;
+  defaultBranch: string;
+  description: string;
+  updatedAt: string;
+  branches: string[];
+}
+
+export interface WorkspaceBinding {
+  id: string;
+  name: string;
+  repo: {
+    fullName: string;
+    branch: string;
+    commitSha?: string;
+  };
+  compute: {
+    type: 'gcp_existing_vm' | 'broker_offer';
+    projectId: string;
+    zone: string;
+    vmName: string;
+    machineType: string;
+    gpuModel?: string;
+    internalIp: string;
+    isPrivateIpOnly: boolean;
+  };
+  status: 'PROVISIONING' | 'CLONING' | 'BOOTSTRAPPING_AGENT' | 'VERIFYING' | 'READY' | 'STOPPED' | 'ERROR';
+  createdAt: string;
+  openedAt?: string;
+  leaseId?: string;
+  agentId?: string;
+}
+
