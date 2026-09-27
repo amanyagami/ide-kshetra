@@ -1,5 +1,5 @@
 import React from 'react';
-import { GitBranch, RefreshCw, AlertCircle, CheckCircle2, Cpu, Zap, Wifi } from 'lucide-react';
+import { GitBranch, RefreshCw, AlertCircle, Check, Cpu, Zap, Wifi } from 'lucide-react';
 import { NodeLease } from '../../types/fabric';
 
 interface StatusBarProps {
@@ -63,7 +63,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
         >
           {readinessReady ? (
             <>
-              <CheckCircle2 className="w-3 h-3 text-[#4ec9b0]" />
+              <Check className="w-3.5 h-3.5 text-[#4ec9b0] stroke-[2.5]" />
               <span className="text-[#4ec9b0]">All-Ready (11/11)</span>
             </>
           ) : (

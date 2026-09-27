@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, ShieldCheck, FileCode } from 'lucide-react';
+import { Check, ShieldCheck, FileCode } from 'lucide-react';
 import { EnvironmentSpec, EnvironmentArtifact } from '../../types/fabric';
 
 interface EnvironmentPanelProps {
@@ -42,7 +42,7 @@ export const EnvironmentPanel: React.FC<EnvironmentPanelProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px]">
           {spec.reproducibilityNotes.map((note, idx) => (
             <div key={idx} className="p-2 border border-[#222222] bg-[#141414] flex items-start gap-2">
-              <CheckCircle2 className="w-3.5 h-3.5 text-[#4ec9b0] shrink-0 mt-0.5" />
+              <Check className="w-4 h-4 text-[#4ec9b0] stroke-[2.5] shrink-0 mt-0.5" />
               <span className="text-[#a0a0a0] leading-snug">{note}</span>
             </div>
           ))}

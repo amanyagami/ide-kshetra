@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RotateCw, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { RotateCw, Check, ShieldCheck } from 'lucide-react';
 import { ProviderStatus } from '../../types/fabric';
 import { initialProviderStatuses } from '../../data/cloudProviders';
 
@@ -54,7 +54,7 @@ export const ProviderManager: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-1 text-[#4ec9b0] text-[10px] font-mono">
-                  <CheckCircle2 className="w-3 h-3" />
+                  <Check className="w-3.5 h-3.5 stroke-[2.5]" />
                   <span>CONNECTED</span>
                 </div>
               </div>

@@ -2,7 +2,7 @@ import React from 'react';
 import { 
   X, 
   RotateCw, 
-  CheckCircle2, 
+  Check, 
   Play, 
   ArrowRight
 } from 'lucide-react';
@@ -127,10 +127,10 @@ export const LaunchModal: React.FC<LaunchModalProps> = ({
           {/* Checklist */}
           <div className="grid grid-cols-2 gap-1.5 text-[10px]">
             {readinessChecks.slice(0, 6).map(c => (
-              <div key={c.id} className="p-1.5 bg-[#141414] border border-[#222222] flex items-center justify-between">
+              <div key={c.id} className="p-1.5 bg-[#141414] border border-[#222222] flex items-center justify-between gap-1.5">
                 <span className="truncate text-[#888888]">{c.label}</span>
                 {c.status === 'passed' ? (
-                  <CheckCircle2 className="w-3 h-3 text-[#4ec9b0] shrink-0" />
+                  <Check className="w-3.5 h-3.5 text-[#4ec9b0] stroke-[2.5] shrink-0" />
                 ) : c.status === 'running' ? (
                   <RotateCw className="w-3 h-3 text-[#0078d4] animate-spin shrink-0" />
                 ) : (

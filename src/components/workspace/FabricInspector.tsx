@@ -5,7 +5,7 @@ import {
   Lock, 
   Globe, 
   HardDrive, 
-  CheckCircle2, 
+  Check, 
   RotateCw, 
   ExternalLink 
 } from 'lucide-react';
@@ -68,7 +68,7 @@ export const FabricInspector: React.FC<FabricInspectorProps> = ({
   const allPassed = readinessChecks.every(c => c.status === 'passed');
 
   return (
-    <div className="w-[280px] bg-[#181818] border-l border-[#282828] flex flex-col shrink-0 h-full overflow-hidden text-[#cccccc] select-none text-[11px]">
+    <div className="w-[320px] bg-[#181818] border-l border-[#282828] flex flex-col shrink-0 h-full overflow-hidden text-[#cccccc] select-none text-[11px]">
       {/* Inspector Section Header & Tabs */}
       <div className="h-[30px] border-b border-[#282828] bg-[#141414] flex items-center justify-between px-1">
         <div className="flex items-center gap-0.5">
@@ -138,24 +138,24 @@ export const FabricInspector: React.FC<FabricInspectorProps> = ({
 
             <div className="space-y-1.5">
               {readinessChecks.map(check => (
-                <div key={check.id} className="p-1.5 border border-[#242424] bg-[#1a1a1a] space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 text-[#cccccc] font-medium">
+                <div key={check.id} className="p-2 border border-[#242424] bg-[#1a1a1a] space-y-1.5 rounded-xs">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="flex items-start gap-2 text-[#cccccc] font-medium leading-snug min-w-0 flex-1">
                       {check.status === 'passed' ? (
-                        <CheckCircle2 className="w-3 h-3 text-[#4ec9b0] shrink-0" />
+                        <Check className="w-4 h-4 text-[#4ec9b0] stroke-[2.5] shrink-0 mt-0.5" />
                       ) : check.status === 'running' ? (
-                        <RotateCw className="w-3 h-3 text-[#0078d4] animate-spin shrink-0" />
+                        <RotateCw className="w-3.5 h-3.5 text-[#0078d4] animate-spin shrink-0 mt-0.5" />
                       ) : (
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#555555] shrink-0" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#555555] shrink-0 mt-1.5" />
                       )}
-                      <span className="truncate">{check.label}</span>
+                      <span className="break-words text-[11px]">{check.label}</span>
                     </span>
                     {check.latencyMs ? (
-                      <span className="text-[#555555] text-[10px]">{check.latencyMs}ms</span>
+                      <span className="text-[#666666] text-[10px] shrink-0 font-mono mt-0.5">{check.latencyMs}ms</span>
                     ) : null}
                   </div>
                   {check.evidence && (
-                    <div className="text-[10px] text-[#777777] pl-4 leading-normal select-text">
+                    <div className="text-[10px] text-[#888888] pl-6 leading-relaxed select-text break-words font-mono">
                       {check.evidence}
                     </div>
                   )}
