@@ -1,20 +1,90 @@
-import express, { Request, Response } from 'express';
+import 'dotenv/config';
+import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
+import cookieParser from 'cookie-parser';
 import { createServer as createViteServer } from 'vite';
-import { 
-  UserProfile, 
-  UserSession, 
-  GcpProject, 
-  GcpVmInstance, 
-  GitHubRepo, 
-  WorkspaceBinding 
+import {
+  UserProfile,
+  UserSession,
+  GcpProject,
+  GcpVmInstance,
+  GitHubRepo,
+  WorkspaceBinding,
+  DataMode,
+  TypedError,
 } from './src/types/fabric';
+import {
+  isGoogleOAuthConfigured,
+  createOAuth2Client,
+  LOGIN_SCOPES,
+  GCP_DISCOVERY_SCOPES,
+  createSessionId,
+  getSession,
+  putSession,
+  deleteSession,
+  createState,
+  consumeState,
+  buildUserSession,
+  buildAuthedClientForSession,
+  hasGcpScope,
+} from './server/auth/googleAuth';
+import {
+  isGitHubAppConfigured,
+  listInstallationRepos,
+  listBranches,
+  verifyInstallation,
+} from './server/connectors/github';
+import { listProjects, listInstances, getUtilization } from './server/connectors/gcp';
+
+function realEnvVar(name: string, placeholder: string): string | undefined {
+  const value = process.env[name];
+  return value && value !== placeholder ? value : undefined;
+}
 
 const app = express();
 app.use(express.json());
+app.use(cookieParser());
 
-// In-Memory Database for Production Demonstration
-let currentSession: UserSession = {
+const SESSION_COOKIE = 'kshetra_sid';
+
+// KSHETRA_DATA_MODE: 'mock' (default) plays back the demo fixtures below.
+// 'live' fails closed — every endpoint below that isn't backed by a real
+// provider integration yet returns a typed error instead of fake success.
+const DATA_MODE: DataMode = process.env.KSHETRA_DATA_MODE === 'live' ? 'live' : 'mock';
+
+function typedError(res: Response, httpStatus: number, error: TypedError) {
+  return res.status(httpStatus).json(error);
+}
+
+// Rejects a route in live mode with a typed error unless a real implementation
+// has been wired in (see server/connectors/*). Applied to every endpoint that
+// today still reads from the hardcoded demo fixtures.
+function liveModeNotConfigured(providerLabel: string) {
+  return (_req: Request, res: Response, next: NextFunction) => {
+    if (DATA_MODE === 'live') {
+      return typedError(res, 501, {
+        status: 'error',
+        errorCode: 'PROVIDER_NOT_CONFIGURED',
+        message: `${providerLabel} is not connected to a real backend yet in live mode. See the phased build plan for the real integration for this endpoint.`,
+      });
+    }
+    next();
+  };
+}
+
+function unauthenticatedSession(): UserSession {
+  return {
+    isAuthenticated: false,
+    user: null,
+    connections: {
+      github: { connected: false, authorizedReposCount: 0 },
+      gcp: { connected: false, discoveredProjectsCount: 0, discoveredVmsCount: 0 },
+    },
+  };
+}
+
+// In-Memory Database for Production Demonstration (mock mode only)
+let currentSession: UserSession = DATA_MODE === 'live' ? unauthenticatedSession() : {
   isAuthenticated: true,
   user: {
     id: 'usr_noah_9941a',
@@ -335,17 +405,137 @@ let workspaces: WorkspaceBinding[] = [
 ];
 
 // ==========================================
+// 0. Environment / data-mode indicator
+// ==========================================
+
+app.get('/api/config', (_req: Request, res: Response) => {
+  res.json({ status: 'ok', dataMode: DATA_MODE });
+});
+
+// ==========================================
 // 1. Session & Authentication Endpoints
 // ==========================================
 
-app.get('/api/session', (_req: Request, res: Response) => {
+app.get('/api/session', async (req: Request, res: Response) => {
+  if (DATA_MODE === 'live') {
+    try {
+      const record = await getSession(req.cookies?.[SESSION_COOKIE]);
+      return res.json({ status: 'ok', session: record?.session || unauthenticatedSession() });
+    } catch (err: any) {
+      console.error('[Kshetra] Session lookup failed:', err);
+      return typedError(res, 500, { status: 'error', errorCode: 'PROVIDER_NOT_CONFIGURED', message: `Session store unavailable: ${err.message || err}` });
+    }
+  }
   res.json({
     status: 'ok',
     session: currentSession,
   });
 });
 
-app.post('/api/auth/login', (req: Request, res: Response) => {
+// Real Google OAuth 2.0 login (Phase 1). Only meaningful in live mode — mock
+// mode keeps using the instant demo /api/auth/login form below.
+app.get('/api/auth/google/login', (req: Request, res: Response) => {
+  if (DATA_MODE !== 'live') {
+    return typedError(res, 400, {
+      status: 'error',
+      errorCode: 'NOT_IMPLEMENTED',
+      message: 'Real Google login only runs in live mode. Set KSHETRA_DATA_MODE=live.',
+    });
+  }
+  if (!isGoogleOAuthConfigured()) {
+    return typedError(res, 501, {
+      status: 'error',
+      errorCode: 'PROVIDER_NOT_CONFIGURED',
+      message: 'GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET are not set in .env. See the phased build plan for how to create them.',
+    });
+  }
+  const client = createOAuth2Client();
+  const state = createState([], req.cookies?.[SESSION_COOKIE]);
+  const authUrl = client.generateAuthUrl({
+    access_type: 'offline',
+    prompt: 'consent',
+    scope: LOGIN_SCOPES,
+    state,
+  });
+  res.redirect(authUrl);
+});
+
+// Incremental consent (plan Section 11.1): a signed-in user explicitly clicks
+// "Connect Google Cloud" to grant the additional read-only Cloud scope —
+// separate from login, on the SAME OAuth client, so no second app registration
+// is needed. Reuses the existing session id rather than creating a new session.
+app.get('/api/connections/gcp/start', (req: Request, res: Response) => {
+  if (DATA_MODE !== 'live' || !isGoogleOAuthConfigured()) {
+    return typedError(res, 501, { status: 'error', errorCode: 'PROVIDER_NOT_CONFIGURED', message: 'Google OAuth is not configured.' });
+  }
+  const sessionId = req.cookies?.[SESSION_COOKIE];
+  if (!sessionId) {
+    return typedError(res, 401, { status: 'error', errorCode: 'AUTH_REQUIRED', message: 'Sign in to Kshetra before connecting Google Cloud.' });
+  }
+  const client = createOAuth2Client();
+  const state = createState(GCP_DISCOVERY_SCOPES, sessionId);
+  const authUrl = client.generateAuthUrl({
+    access_type: 'offline',
+    prompt: 'consent',
+    include_granted_scopes: true,
+    scope: GCP_DISCOVERY_SCOPES,
+    state,
+  });
+  res.redirect(authUrl);
+});
+
+app.get('/api/auth/google/callback', async (req: Request, res: Response) => {
+  if (DATA_MODE !== 'live' || !isGoogleOAuthConfigured()) {
+    return typedError(res, 400, {
+      status: 'error',
+      errorCode: 'PROVIDER_NOT_CONFIGURED',
+      message: 'Google login is not configured.',
+    });
+  }
+  const { code, state, error } = req.query as { code?: string; state?: string; error?: string };
+  if (error) {
+    return typedError(res, 401, { status: 'error', errorCode: 'AUTH_REQUIRED', message: `Google login was not completed: ${error}` });
+  }
+  const stateRecord = consumeState(String(state || ''));
+  if (!stateRecord) {
+    return typedError(res, 401, { status: 'error', errorCode: 'AUTH_REQUIRED', message: 'Invalid or expired OAuth state (possible CSRF attempt) — please try signing in again.' });
+  }
+  try {
+    const client = createOAuth2Client();
+    const { tokens } = await client.getToken(String(code));
+    client.setCredentials(tokens);
+
+    // Incremental-consent branch: attach the new (Cloud-scoped) tokens to the
+    // EXISTING session instead of minting a new one.
+    if (stateRecord.existingSessionId) {
+      const existing = await getSession(stateRecord.existingSessionId);
+      if (!existing) {
+        return typedError(res, 401, { status: 'error', errorCode: 'AUTH_REQUIRED', message: 'Your Kshetra session expired — sign in again before connecting Google Cloud.' });
+      }
+      const mergedTokens = { ...existing.googleTokens, ...tokens, refresh_token: tokens.refresh_token || existing.googleTokens.refresh_token };
+      existing.session.connections.gcp = { connected: true, userEmail: existing.user.email, discoveredProjectsCount: 0, discoveredVmsCount: 0 };
+      await putSession(stateRecord.existingSessionId, { ...existing, googleTokens: mergedTokens });
+      return res.redirect('/');
+    }
+
+    const ticket = await client.verifyIdToken({ idToken: tokens.id_token!, audience: process.env.GOOGLE_OAUTH_CLIENT_ID });
+    const payload = ticket.getPayload();
+    if (!payload?.sub || !payload.email) {
+      throw new Error('Google ID token did not include the expected claims.');
+    }
+    const identity = { sub: payload.sub, email: payload.email, name: payload.name || payload.email, picture: payload.picture || '' };
+    const sessionId = createSessionId();
+    const session = buildUserSession(identity);
+    await putSession(sessionId, { user: identity, session, googleTokens: tokens });
+    res.cookie(SESSION_COOKIE, sessionId, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
+    res.redirect('/');
+  } catch (err: any) {
+    console.error('[Kshetra] Google OAuth callback failed:', err);
+    typedError(res, 401, { status: 'error', errorCode: 'AUTH_REQUIRED', message: `Google login failed: ${err.message || err}` });
+  }
+});
+
+app.post('/api/auth/login', liveModeNotConfigured('Real Google OAuth login'), (req: Request, res: Response) => {
   const { email, name, organization } = req.body;
   const userEmail = email || 'aman@noahlabs.ai';
 
@@ -385,15 +575,13 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
   });
 });
 
-app.post('/api/auth/logout', (_req: Request, res: Response) => {
-  currentSession = {
-    isAuthenticated: false,
-    user: null,
-    connections: {
-      github: { connected: false, authorizedReposCount: 0 },
-      gcp: { connected: false, discoveredProjectsCount: 0, discoveredVmsCount: 0 },
-    },
-  };
+app.post('/api/auth/logout', async (req: Request, res: Response) => {
+  if (DATA_MODE === 'live') {
+    await deleteSession(req.cookies?.[SESSION_COOKIE]);
+    res.clearCookie(SESSION_COOKIE);
+    return res.json({ status: 'ok', message: 'Signed out successfully' });
+  }
+  currentSession = unauthenticatedSession();
   res.json({ status: 'ok', message: 'Signed out successfully' });
 });
 
@@ -401,7 +589,7 @@ app.post('/api/auth/logout', (_req: Request, res: Response) => {
 // 2. Google Cloud Platform VM Endpoints
 // ==========================================
 
-app.get('/api/gcp/status', (_req: Request, res: Response) => {
+app.get('/api/gcp/status', liveModeNotConfigured('Google Cloud Platform'), (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
     connected: currentSession.connections.gcp.connected,
@@ -413,7 +601,7 @@ app.get('/api/gcp/status', (_req: Request, res: Response) => {
   });
 });
 
-app.post('/api/gcp/connect', (req: Request, res: Response) => {
+app.post('/api/gcp/connect', liveModeNotConfigured('Google Cloud Platform'), (req: Request, res: Response) => {
   const { projectId } = req.body;
   currentSession.connections.gcp.connected = true;
   currentSession.connections.gcp.activeProjectId = projectId || 'noahlabs-ai-prod';
@@ -431,7 +619,7 @@ app.post('/api/gcp/disconnect', (_req: Request, res: Response) => {
   res.json({ status: 'ok', message: 'Google Cloud Platform connection revoked.' });
 });
 
-app.get('/api/gcp/projects', (_req: Request, res: Response) => {
+app.get('/api/gcp/projects', liveModeNotConfigured('Google Cloud Platform'), (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
     projects: gcpProjects,
@@ -439,7 +627,58 @@ app.get('/api/gcp/projects', (_req: Request, res: Response) => {
   });
 });
 
-app.get('/api/gcp/projects/:projectId/vms', (req: Request, res: Response) => {
+// ==========================================
+// 2b. GCP — real endpoints (live mode only)
+// ==========================================
+
+async function requireGcpSession(req: Request, res: Response): Promise<{ sessionId: string; record: Awaited<ReturnType<typeof getSession>> } | undefined> {
+  const sessionId = req.cookies?.[SESSION_COOKIE];
+  const record = await getSession(sessionId);
+  if (!record) {
+    typedError(res, 401, { status: 'error', errorCode: 'AUTH_REQUIRED', message: 'Sign in to Kshetra first.' });
+    return undefined;
+  }
+  if (!hasGcpScope(record)) {
+    typedError(res, 401, { status: 'error', errorCode: 'REAUTH_REQUIRED', message: 'Connect Google Cloud first (GET /api/connections/gcp/start).' });
+    return undefined;
+  }
+  return { sessionId, record };
+}
+
+app.get('/api/connections/gcp/:sessionId/projects', async (req: Request, res: Response) => {
+  if (DATA_MODE !== 'live') return typedError(res, 400, { status: 'error', errorCode: 'NOT_IMPLEMENTED', message: 'Only available in live mode.' });
+  const ctx = await requireGcpSession(req, res);
+  if (!ctx) return;
+  try {
+    const client = buildAuthedClientForSession(ctx.sessionId, ctx.record!);
+    const projects = await listProjects(client);
+    res.json({ status: 'ok', projects });
+  } catch (err: any) {
+    typedError(res, 502, { status: 'error', errorCode: 'PROJECT_NOT_FOUND', message: `Failed to list projects: ${err.message || err}` });
+  }
+});
+
+app.get('/api/connections/gcp/:sessionId/projects/:projectId/instances', async (req: Request, res: Response) => {
+  if (DATA_MODE !== 'live') return typedError(res, 400, { status: 'error', errorCode: 'NOT_IMPLEMENTED', message: 'Only available in live mode.' });
+  const ctx = await requireGcpSession(req, res);
+  if (!ctx) return;
+  try {
+    const client = buildAuthedClientForSession(ctx.sessionId, ctx.record!);
+    const instances = await listInstances(client, req.params.projectId);
+    // Best-effort utilization enrichment — never fails the whole request if
+    // Monitoring is unavailable (e.g. billing not enabled on the project).
+    const enriched = await Promise.all(instances.map(async (vm) => {
+      if (vm.status !== 'RUNNING') return vm;
+      const util = await getUtilization(client, req.params.projectId, vm.id).catch(() => ({}));
+      return { ...vm, ...util };
+    }));
+    res.json({ status: 'ok', vms: enriched });
+  } catch (err: any) {
+    typedError(res, 502, { status: 'error', errorCode: 'TARGET_NOT_FOUND', message: `Failed to list instances: ${err.message || err}` });
+  }
+});
+
+app.get('/api/gcp/projects/:projectId/vms', liveModeNotConfigured('Google Cloud Platform'), (req: Request, res: Response) => {
   const { projectId } = req.params;
   const filtered = gcpVms.filter(v => v.projectId === projectId);
   res.json({
@@ -451,7 +690,7 @@ app.get('/api/gcp/projects/:projectId/vms', (req: Request, res: Response) => {
   });
 });
 
-app.get('/api/gcp/vms', (_req: Request, res: Response) => {
+app.get('/api/gcp/vms', liveModeNotConfigured('Google Cloud Platform'), (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
     totalVms: gcpVms.length,
@@ -461,7 +700,7 @@ app.get('/api/gcp/vms', (_req: Request, res: Response) => {
 });
 
 // Preflight Check for GCP VM (IAP tunneling, OS Login, NVIDIA Driver)
-app.post('/api/gcp/vms/:projectId/:zone/:name/preflight', (req: Request, res: Response) => {
+app.post('/api/gcp/vms/:projectId/:zone/:name/preflight', liveModeNotConfigured('GCP VM preflight'), (req: Request, res: Response) => {
   const { projectId, zone, name } = req.params;
   const vm = gcpVms.find(v => v.name === name && v.projectId === projectId);
 
@@ -503,7 +742,7 @@ app.post('/api/gcp/vms/:projectId/:zone/:name/preflight', (req: Request, res: Re
 });
 
 // Bootstrap / Connect Kshetra Agent to existing VM
-app.post('/api/gcp/vms/:projectId/:zone/:name/connect', (req: Request, res: Response) => {
+app.post('/api/gcp/vms/:projectId/:zone/:name/connect', liveModeNotConfigured('GCP VM agent bootstrap'), (req: Request, res: Response) => {
   const { projectId, name } = req.params;
   const vm = gcpVms.find(v => v.name === name && v.projectId === projectId);
 
@@ -534,7 +773,7 @@ app.post('/api/gcp/vms/:projectId/:zone/:name/connect', (req: Request, res: Resp
 });
 
 // Start / Stop / Restart VM Action
-app.post('/api/gcp/vms/:projectId/:zone/:name/action', (req: Request, res: Response) => {
+app.post('/api/gcp/vms/:projectId/:zone/:name/action', liveModeNotConfigured('GCP VM control'), (req: Request, res: Response) => {
   const { projectId, name } = req.params;
   const { action } = req.body; // 'start' | 'stop' | 'reset'
   const vm = gcpVms.find(v => v.name === name && v.projectId === projectId);
@@ -567,7 +806,7 @@ app.post('/api/gcp/vms/:projectId/:zone/:name/action', (req: Request, res: Respo
 // 3. GitHub App Endpoints
 // ==========================================
 
-app.get('/api/github/status', (_req: Request, res: Response) => {
+app.get('/api/github/status', liveModeNotConfigured('GitHub App'), (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
     connected: currentSession.connections.github.connected,
@@ -577,7 +816,7 @@ app.get('/api/github/status', (_req: Request, res: Response) => {
   });
 });
 
-app.post('/api/github/connect', (req: Request, res: Response) => {
+app.post('/api/github/connect', liveModeNotConfigured('GitHub App'), (req: Request, res: Response) => {
   const { account } = req.body;
   currentSession.connections.github.connected = true;
   currentSession.connections.github.account = account || 'amanyagami';
@@ -596,14 +835,14 @@ app.post('/api/github/disconnect', (_req: Request, res: Response) => {
   res.json({ status: 'ok', message: 'GitHub App authorization revoked.' });
 });
 
-app.get('/api/github/repos', (_req: Request, res: Response) => {
+app.get('/api/github/repos', liveModeNotConfigured('GitHub App'), (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
     repos: githubRepos,
   });
 });
 
-app.get('/api/github/repos/:owner/:repo/branches', (req: Request, res: Response) => {
+app.get('/api/github/repos/:owner/:repo/branches', liveModeNotConfigured('GitHub App'), (req: Request, res: Response) => {
   const { owner, repo } = req.params;
   const fullName = `${owner}/${repo}`;
   const found = githubRepos.find(r => r.fullName === fullName);
@@ -616,10 +855,71 @@ app.get('/api/github/repos/:owner/:repo/branches', (req: Request, res: Response)
 });
 
 // ==========================================
+// 3b. GitHub App — real endpoints (live mode only)
+// ==========================================
+
+app.get('/api/connections/github/start', (req: Request, res: Response) => {
+  if (DATA_MODE !== 'live') {
+    return typedError(res, 400, { status: 'error', errorCode: 'NOT_IMPLEMENTED', message: 'Real GitHub connection only runs in live mode.' });
+  }
+  const appSlug = realEnvVar('GITHUB_APP_SLUG', 'MY_GITHUB_APP_SLUG');
+  if (!isGitHubAppConfigured() || !appSlug) {
+    return typedError(res, 501, { status: 'error', errorCode: 'PROVIDER_NOT_CONFIGURED', message: 'GITHUB_APP_ID / GITHUB_APP_PRIVATE_KEY / GITHUB_APP_SLUG are not set in .env.' });
+  }
+  res.redirect(`https://github.com/apps/${appSlug}/installations/new`);
+});
+
+app.get('/api/connections/github/callback', async (req: Request, res: Response) => {
+  if (DATA_MODE !== 'live' || !isGitHubAppConfigured()) {
+    return typedError(res, 400, { status: 'error', errorCode: 'PROVIDER_NOT_CONFIGURED', message: 'GitHub App is not configured.' });
+  }
+  const installationId = Number(req.query.installation_id);
+  if (!installationId) {
+    return typedError(res, 400, { status: 'error', errorCode: 'REPOSITORY_NOT_FOUND', message: 'No installation_id returned by GitHub.' });
+  }
+  const sessionId = req.cookies?.[SESSION_COOKIE];
+  const record = await getSession(sessionId);
+  if (!record) {
+    return typedError(res, 401, { status: 'error', errorCode: 'AUTH_REQUIRED', message: 'Sign in to Kshetra before connecting GitHub.' });
+  }
+  const ok = await verifyInstallation(installationId);
+  if (!ok) {
+    return typedError(res, 401, { status: 'error', errorCode: 'INSTALLATION_REVOKED', message: 'GitHub could not verify this installation.' });
+  }
+  record.session.connections.github = { connected: true, installationId: String(installationId), authorizedReposCount: 0 };
+  await putSession(sessionId, record);
+  res.redirect('/');
+});
+
+app.get('/api/connections/github/:id/repositories', async (req: Request, res: Response) => {
+  if (DATA_MODE !== 'live') {
+    return typedError(res, 400, { status: 'error', errorCode: 'NOT_IMPLEMENTED', message: 'Real GitHub repo listing only runs in live mode.' });
+  }
+  try {
+    const repos = await listInstallationRepos(Number(req.params.id));
+    res.json({ status: 'ok', repos });
+  } catch (err: any) {
+    typedError(res, 401, { status: 'error', errorCode: 'REAUTH_REQUIRED', message: `Failed to list repositories: ${err.message || err}` });
+  }
+});
+
+app.get('/api/connections/github/:id/repositories/:owner/:repo/branches', async (req: Request, res: Response) => {
+  if (DATA_MODE !== 'live') {
+    return typedError(res, 400, { status: 'error', errorCode: 'NOT_IMPLEMENTED', message: 'Real GitHub branch listing only runs in live mode.' });
+  }
+  try {
+    const branches = await listBranches(Number(req.params.id), req.params.owner, req.params.repo);
+    res.json({ status: 'ok', branches });
+  } catch (err: any) {
+    typedError(res, 404, { status: 'error', errorCode: 'REPOSITORY_NOT_FOUND', message: `Failed to list branches: ${err.message || err}` });
+  }
+});
+
+// ==========================================
 // 4. Workspace Binding & Lifecycle Endpoints
 // ==========================================
 
-app.get('/api/workspaces', (_req: Request, res: Response) => {
+app.get('/api/workspaces', liveModeNotConfigured('Workspace runtime'), (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
     workspaces,
@@ -627,7 +927,7 @@ app.get('/api/workspaces', (_req: Request, res: Response) => {
 });
 
 // Create Binding: RepositorySelection + ComputeTarget = WorkspaceBinding
-app.post('/api/workspaces', (req: Request, res: Response) => {
+app.post('/api/workspaces', liveModeNotConfigured('Workspace runtime'), (req: Request, res: Response) => {
   const { repoFullName, branch, vmName, projectId, zone } = req.body;
   const vm = gcpVms.find(v => v.name === vmName);
 
@@ -662,7 +962,7 @@ app.post('/api/workspaces', (req: Request, res: Response) => {
 });
 
 // Open Workspace: Idempotent clone, runtime init, readiness verification
-app.post('/api/workspaces/:id/open', (req: Request, res: Response) => {
+app.post('/api/workspaces/:id/open', liveModeNotConfigured('Workspace runtime'), (req: Request, res: Response) => {
   const { id } = req.params;
   const ws = workspaces.find(w => w.id === id);
 
@@ -683,7 +983,7 @@ app.post('/api/workspaces/:id/open', (req: Request, res: Response) => {
   });
 });
 
-app.post('/api/workspaces/:id/stop', (req: Request, res: Response) => {
+app.post('/api/workspaces/:id/stop', liveModeNotConfigured('Workspace runtime'), (req: Request, res: Response) => {
   const { id } = req.params;
   const ws = workspaces.find(w => w.id === id);
 

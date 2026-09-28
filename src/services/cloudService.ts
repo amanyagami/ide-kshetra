@@ -7,6 +7,13 @@ import {
 } from '../types/fabric';
 
 export class CloudService {
+  async getConfig(): Promise<{ dataMode: 'mock' | 'live' }> {
+    const res = await fetch('/api/config');
+    if (!res.ok) throw new Error('Failed to load config');
+    const data = await res.json();
+    return { dataMode: data.dataMode };
+  }
+
   async getSession(): Promise<UserSession> {
     const res = await fetch('/api/session');
     if (!res.ok) throw new Error('Failed to load session');

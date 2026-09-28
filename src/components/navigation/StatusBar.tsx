@@ -1,9 +1,10 @@
 import React from 'react';
 import { GitBranch, RefreshCw, AlertCircle, Check, Cpu, Zap, Wifi } from 'lucide-react';
-import { NodeLease } from '../../types/fabric';
+import { NodeLease, DataMode } from '../../types/fabric';
 
 interface StatusBarProps {
   lease: NodeLease | null;
+  dataMode: DataMode;
   readinessReady: boolean;
   onOpenTerminal: () => void;
   onOpenReadiness: () => void;
@@ -12,6 +13,7 @@ interface StatusBarProps {
 
 export const StatusBar: React.FC<StatusBarProps> = ({
   lease,
+  dataMode,
   readinessReady,
   onOpenTerminal,
   onOpenReadiness,
@@ -55,6 +57,18 @@ export const StatusBar: React.FC<StatusBarProps> = ({
 
       {/* Right items */}
       <div className="flex items-center gap-3 text-[11px]">
+        {/* Data mode indicator: never let the UI look real when it isn't */}
+        <span
+          title={dataMode === 'live' ? 'LIVE: real provider and runtime evidence' : 'MOCK: synthetic/demo data'}
+          className={`px-1.5 py-[1px] font-mono text-[10px] font-bold tracking-wider border rounded-sm ${
+            dataMode === 'live'
+              ? 'border-[#23583a] bg-[#14261c] text-[#4ec9b0]'
+              : 'border-[#5a4a1a] bg-[#26200f] text-[#cca700]'
+          }`}
+        >
+          {dataMode === 'live' ? 'LIVE' : 'MOCK'}
+        </span>
+
         {/* Truthful All-Ready indicator */}
         <div 
           onClick={onOpenReadiness}

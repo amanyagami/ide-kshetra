@@ -18,7 +18,8 @@ import {
   GcpProject,
   GcpVmInstance,
   GitHubRepo,
-  WorkspaceBinding
+  WorkspaceBinding,
+  DataMode
 } from './types/fabric';
 import { mockRepositoryFiles } from './data/mockRepository';
 import { defaultGpuTelemetry } from './data/cloudProviders';
@@ -49,33 +50,20 @@ export default function App() {
   const [showBottomPanel, setShowBottomPanel] = useState<boolean>(true);
   const [showInspector, setShowInspector] = useState<boolean>(true);
 
-  // User Session & Real-Time Cloud Connections
+  // Data mode: reported by the server (KSHETRA_DATA_MODE). Starts as 'mock'
+  // (the safe default) until /api/config resolves on mount.
+  const [dataMode, setDataMode] = useState<DataMode>('mock');
+
+  // User Session & Real-Time Cloud Connections.
+  // Starts unauthenticated; loadCloudData() below populates it from the real
+  // /api/session response for both modes (mock mode's server still returns
+  // its demo fixture session; live mode returns a real/unauthenticated one).
   const [session, setSession] = useState<UserSession>({
-    isAuthenticated: true,
-    user: {
-      id: 'usr_noah_9941a',
-      email: 'aman@noahlabs.ai',
-      name: 'Aman (NoahLabs)',
-      avatarUrl: '/src/assets/images/avatar_engineer_1790479540008.jpg',
-      role: 'owner',
-      organization: 'noahlabs.ai',
-    },
-    sessionToken: 'sess_kshetra_78a1bc9204e',
-    signedInAt: new Date().toISOString(),
+    isAuthenticated: false,
+    user: null,
     connections: {
-      github: {
-        connected: true,
-        account: 'amanyagami',
-        installationId: 'gh-inst-8849201',
-        authorizedReposCount: 3,
-      },
-      gcp: {
-        connected: true,
-        userEmail: 'aman@noahlabs.ai',
-        activeProjectId: 'noahlabs-ai-prod',
-        discoveredProjectsCount: 3,
-        discoveredVmsCount: 6,
-      },
+      github: { connected: false, authorizedReposCount: 0 },
+      gcp: { connected: false, discoveredProjectsCount: 0, discoveredVmsCount: 0 },
     },
   });
 
@@ -121,10 +109,24 @@ export default function App() {
   );
   const envArtifact = environmentCompiler.buildAndSignArtifact(envSpec);
 
-  // Initial Fetch of Session, GCP Projects, VMs, Repos
+  // Initial Fetch of Data Mode, Session, GCP Projects, VMs, Repos
   useEffect(() => {
-    loadCloudData();
-    executeLaunchPipeline(false);
+    (async () => {
+      try {
+        const cfg = await cloudService.getConfig();
+        setDataMode(cfg.dataMode);
+        await loadCloudData();
+        // The simulated broker/readiness pipeline below is demo-only theater
+        // (fake timers, fabricated evidence). Never auto-run it in live mode.
+        if (cfg.dataMode === 'mock') {
+          executeLaunchPipeline(false);
+        }
+      } catch (err) {
+        console.warn('[Kshetra] Failed to load /api/config, defaulting to mock:', err);
+        await loadCloudData();
+        executeLaunchPipeline(false);
+      }
+    })();
   }, []);
 
   const loadCloudData = async () => {
@@ -261,8 +263,9 @@ export default function App() {
     setActiveView('workspace');
   };
 
-  // Periodic GPU telemetry variation (calm, real-looking)
+  // Periodic GPU telemetry variation (calm, real-looking) — demo-only fabrication.
   useEffect(() => {
+    if (dataMode !== 'mock') return;
     const interval = setInterval(() => {
       setTelemetry(prev => {
         const utilDelta = (Math.random() - 0.5) * 4;
@@ -279,9 +282,16 @@ export default function App() {
     }, 3000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [dataMode]);
 
   const executeLaunchPipeline = async (showModal = true) => {
+    if (dataMode !== 'mock') {
+      // The broker/readiness pipeline below is 100% fabricated (fake timers,
+      // hardcoded "passed" evidence). Never run it in live mode — that's
+      // exactly the fake-success failure the data-mode gate exists to prevent.
+      setLaunchError('Live execution runtime is not implemented yet (see the phased build plan, Phases 4-6). No workspace can be opened in live mode until a real GCP VM bootstrap + Jupyter path lands.');
+      return;
+    }
     setIsLaunching(true);
     setLaunchError(null);
     if (showModal) setIsLaunchModalOpen(true);
@@ -432,6 +442,7 @@ export default function App() {
       {/* 3. Status Bar (22px) */}
       <StatusBar
         lease={lease}
+        dataMode={dataMode}
         readinessReady={isReadinessReady}
         onOpenTerminal={() => {
           setActiveView('workspace');
@@ -464,6 +475,7 @@ export default function App() {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         session={session}
+        dataMode={dataMode}
         onLogin={handleLogin}
         onLogout={handleLogout}
       />

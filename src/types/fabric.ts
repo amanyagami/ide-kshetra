@@ -7,6 +7,35 @@ export type ProviderId = 'gmi' | 'aws' | 'gcp' | 'azure' | 'static';
 
 export type OptimizationStrategy = 'fastest' | 'cheapest' | 'balanced';
 
+export type DataMode = 'mock' | 'live';
+
+export type TypedErrorCode =
+  | 'AUTH_REQUIRED'
+  | 'REAUTH_REQUIRED'
+  | 'NOT_IMPLEMENTED'
+  | 'PROVIDER_NOT_CONFIGURED'
+  | 'ACCOUNT_NOT_ALLOWED'
+  | 'PERMISSION_DENIED'
+  | 'PROJECT_NOT_FOUND'
+  | 'REPOSITORY_NOT_FOUND'
+  | 'INSTALLATION_REVOKED'
+  | 'TARGET_NOT_FOUND'
+  | 'VM_STOPPED'
+  | 'VM_UNREACHABLE'
+  | 'IAP_NOT_ALLOWED'
+  | 'OS_LOGIN_REQUIRED'
+  | 'AGENT_NOT_INSTALLED'
+  | 'BOOTSTRAP_FAILED'
+  | 'ENVIRONMENT_BUILD_FAILED'
+  | 'RUNTIME_START_FAILED'
+  | 'JUPYTER_UNHEALTHY';
+
+export interface TypedError {
+  status: 'error';
+  errorCode: TypedErrorCode;
+  message: string;
+}
+
 export interface ComputeRequirements {
   gpuModel: string;
   minVramGB: number;
@@ -324,6 +353,11 @@ export interface GcpVmInstance {
   agentVersion?: string;
   uptimeHours: number;
   costPerHour: number;
+  // Real-time utilization from Cloud Monitoring (live mode only). Absent —
+  // not zero — when the metric isn't reporting (e.g. no GPU metrics agent
+  // installed, or Monitoring API unavailable); never fabricated.
+  cpuUtilizationPercent?: number;
+  gpuUtilizationPercent?: number;
   preflight?: {
     checkedAt: string;
     passed: boolean;
