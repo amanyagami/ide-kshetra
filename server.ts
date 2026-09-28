@@ -34,7 +34,7 @@ import {
   listBranches,
   verifyInstallation,
 } from './server/connectors/github';
-import { listProjects, listInstances, getUtilization } from './server/connectors/gcp';
+import { listProjects, listInstances, getUtilization, createInstance } from './server/connectors/gcp';
 
 function realEnvVar(name: string, placeholder: string): string | undefined {
   const value = process.env[name];
@@ -675,6 +675,39 @@ app.get('/api/connections/gcp/:sessionId/projects/:projectId/instances', async (
     res.json({ status: 'ok', vms: enriched });
   } catch (err: any) {
     typedError(res, 502, { status: 'error', errorCode: 'TARGET_NOT_FOUND', message: `Failed to list instances: ${err.message || err}` });
+  }
+});
+
+// Real VM creation (Phase 3 "New Machine" UI). Curated preset fields only —
+// the client picks a GPU tier, not raw GCP SKUs (plan Section 15).
+app.post('/api/connections/gcp/:sessionId/projects/:projectId/instances', async (req: Request, res: Response) => {
+  if (DATA_MODE !== 'live') return typedError(res, 400, { status: 'error', errorCode: 'NOT_IMPLEMENTED', message: 'Only available in live mode.' });
+  const ctx = await requireGcpSession(req, res);
+  if (!ctx) return;
+  const { name, zone, machineType, sourceImage, diskSizeGb, acceleratorType, acceleratorCount } = req.body;
+  if (!name || !zone || !machineType || !sourceImage) {
+    return typedError(res, 400, { status: 'error', errorCode: 'ENVIRONMENT_BUILD_FAILED', message: 'name, zone, machineType, and sourceImage are required.' });
+  }
+  try {
+    const client = buildAuthedClientForSession(ctx.sessionId, ctx.record!);
+    await createInstance(client, { projectId: req.params.projectId, zone, name, machineType, sourceImage, diskSizeGb: diskSizeGb || 200, acceleratorType, acceleratorCount });
+    // Real creation is async on GCP's side; report the pending instance shape
+    // immediately rather than blocking on the long-running operation here.
+    res.json({
+      status: 'ok',
+      message: `Instance ${name} creation started in ${zone}.`,
+      vm: {
+        id: name, name, projectId: req.params.projectId, zone,
+        status: 'PROVISIONING', machineType,
+        gpu: acceleratorType ? { model: acceleratorType, count: acceleratorCount || 1, vramTotalGB: 0 } : undefined,
+        cpuCores: 0, ramGB: 0, bootDiskGB: diskSizeGb || 200,
+        internalIp: '', externalIp: null, isPrivateOnly: true,
+        osImage: sourceImage, iapSupported: true, osLoginEnabled: true,
+        agentStatus: 'NOT_INSTALLED', uptimeHours: 0, costPerHour: 0,
+      },
+    });
+  } catch (err: any) {
+    typedError(res, 502, { status: 'error', errorCode: 'QUOTA_EXCEEDED', message: `Failed to create instance: ${err.message || err}` });
   }
 });
 

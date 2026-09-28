@@ -1,19 +1,20 @@
 import React, { useState } from 'react';
-import { 
-  Cloud, 
-  RotateCw, 
-  Play, 
-  Square, 
-  CheckCircle2, 
-  AlertCircle, 
-  ShieldCheck, 
-  Cpu, 
-  Terminal, 
+import {
+  Cloud,
+  RotateCw,
+  Play,
+  Square,
+  CheckCircle2,
+  AlertCircle,
+  ShieldCheck,
+  Cpu,
+  Terminal,
   ArrowRight,
   HardDrive,
   Lock,
   Zap,
-  Activity
+  Activity,
+  Plus
 } from 'lucide-react';
 import { GcpProject, GcpVmInstance, WorkspaceBinding } from '../../types/fabric';
 import { cloudService } from '../../services/cloudService';
@@ -25,6 +26,7 @@ interface GcpVmExplorerProps {
   vms: GcpVmInstance[];
   onRefreshVms: () => Promise<void>;
   onOpenWorkspaceOnVm: (vm: GcpVmInstance) => void;
+  onCreateVm?: () => void;
 }
 
 export const GcpVmExplorer: React.FC<GcpVmExplorerProps> = ({
@@ -34,6 +36,7 @@ export const GcpVmExplorer: React.FC<GcpVmExplorerProps> = ({
   vms,
   onRefreshVms,
   onOpenWorkspaceOnVm,
+  onCreateVm,
 }) => {
   const [selectedVm, setSelectedVm] = useState<GcpVmInstance | null>(vms[0] || null);
   const [isPreflighting, setIsPreflighting] = useState<boolean>(false);
@@ -120,6 +123,17 @@ export const GcpVmExplorer: React.FC<GcpVmExplorerProps> = ({
           >
             <RotateCw className="w-3 h-3" />
           </button>
+
+          {onCreateVm && (
+            <button
+              onClick={onCreateVm}
+              className="h-[24px] px-2 flex items-center gap-1 bg-[#0078d4] hover:bg-[#006bbd] text-white rounded-sm text-[11px] font-medium transition-colors"
+              title="Create a new machine"
+            >
+              <Plus className="w-3 h-3" />
+              <span>New Machine</span>
+            </button>
+          )}
         </div>
       </div>
 

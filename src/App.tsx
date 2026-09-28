@@ -41,6 +41,7 @@ import { ArchitectureViewer } from './components/architecture/ArchitectureViewer
 import { LaunchModal } from './components/workspace/LaunchModal';
 import { AuthModal } from './components/auth/AuthModal';
 import { WorkspaceBindingModal } from './components/cloud/WorkspaceBindingModal';
+import { CreateVmModal } from './components/cloud/CreateVmModal';
 
 export default function App() {
   const [activeView, setActiveView] = useState<'workspace' | 'gcp' | 'compute' | 'environment' | 'providers' | 'verification' | 'spec'>('workspace');
@@ -77,6 +78,7 @@ export default function App() {
   // Modals Visibility
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isBindingModalOpen, setIsBindingModalOpen] = useState<boolean>(false);
+  const [isCreateVmModalOpen, setIsCreateVmModalOpen] = useState<boolean>(false);
   const [bindingDefaultVm, setBindingDefaultVm] = useState<string | undefined>(undefined);
 
   // Core IDE State
@@ -401,6 +403,7 @@ export default function App() {
               vms={gcpVms}
               onRefreshVms={handleRefreshVms}
               onOpenWorkspaceOnVm={handleOpenWorkspaceOnVm}
+              onCreateVm={dataMode === 'live' ? () => setIsCreateVmModalOpen(true) : undefined}
             />
           )}
 
@@ -488,6 +491,18 @@ export default function App() {
         vms={gcpVms}
         defaultVmName={bindingDefaultVm}
         onConfirmBinding={handleConfirmBinding}
+      />
+
+      {/* 7. Create VM Modal (real GCP instance creation, live mode only) */}
+      <CreateVmModal
+        isOpen={isCreateVmModalOpen}
+        onClose={() => setIsCreateVmModalOpen(false)}
+        projects={gcpProjects}
+        activeProjectId={activeGcpProjectId}
+        onVmCreated={() => {
+          setIsCreateVmModalOpen(false);
+          handleRefreshVms();
+        }}
       />
     </div>
   );

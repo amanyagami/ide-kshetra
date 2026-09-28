@@ -52,6 +52,28 @@ export class CloudService {
     return data.vms;
   }
 
+  // Real GCP instance creation (live mode, Phase 3). Authorized by the
+  // caller's own session cookie server-side (per-user OAuth token) — never a
+  // shared server credential.
+  async createGcpInstance(projectId: string, opts: {
+    name: string;
+    zone: string;
+    machineType: string;
+    sourceImage: string;
+    diskSizeGb: number;
+    acceleratorType?: string;
+    acceleratorCount?: number;
+  }): Promise<GcpVmInstance> {
+    const res = await fetch(`/api/connections/gcp/me/projects/${projectId}/instances`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(opts),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Failed to create instance');
+    return data.vm;
+  }
+
   async runVmPreflight(projectId: string, zone: string, vmName: string): Promise<GcpVmInstance['preflight']> {
     const res = await fetch(`/api/gcp/vms/${projectId}/${zone}/${vmName}/preflight`, {
       method: 'POST',
